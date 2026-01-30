@@ -174,18 +174,18 @@
                         <label class="block font-bold mb-2">Month <span class="text-red-500">*</span></label>
                         <select id="payroll_month" required class="w-full border-2 border-gray-300 rounded-lg px-4 py-2">
                             <option value="">Select Month...</option>
-                            <option value="January">January</option>
-                            <option value="February">February</option>
-                            <option value="March">March</option>
-                            <option value="April">April</option>
-                            <option value="May">May</option>
-                            <option value="June">June</option>
-                            <option value="July">July</option>
-                            <option value="August">August</option>
-                            <option value="September">September</option>
-                            <option value="October">October</option>
-                            <option value="November">November</option>
-                            <option value="December">December</option>
+                            <option value="1">January</option>
+                            <option value="2">February</option>
+                            <option value="3">March</option>
+                            <option value="4">April</option>
+                            <option value="5">May</option>
+                            <option value="6">June</option>
+                            <option value="7">July</option>
+                            <option value="8">August</option>
+                            <option value="9">September</option>
+                            <option value="10">October</option>
+                            <option value="11">November</option>
+                            <option value="12">December</option>
                         </select>
                     </div>
                     <div>
@@ -354,6 +354,9 @@
                         </tr>
                     `;
                 } else {
+                    const monthNames = ['', 'January', 'February', 'March', 'April', 'May', 'June',
+                                        'July', 'August', 'September', 'October', 'November', 'December'];
+
                     payroll.forEach(entry => {
                         const statusBadge = entry.payment_status === 'paid'
                             ? '<span class="px-2 py-1 bg-green-200 text-green-800 rounded text-xs font-bold">Paid</span>'
@@ -361,10 +364,12 @@
 
                         const staffName = entry.staff?.name || 'N/A';
                         const amount = entry.amount || 0;
+                        const monthDisplay = monthNames[entry.month] || entry.month;
+                        const yearDisplay = entry.year || '';
 
                         payrollHtml += `
                             <tr class="border-t hover:bg-violet-50">
-                                <td class="p-3">${entry.month}</td>
+                                <td class="p-3">${monthDisplay} ${yearDisplay}</td>
                                 <td class="p-3 font-semibold">${staffName}</td>
                                 <td class="p-3 text-right font-bold">${formatTSh(amount)}</td>
                                 <td class="p-3 text-right text-red-600">TSh 0.00</td>
@@ -466,7 +471,7 @@
 
             // Set defaults
             const now = new Date();
-            document.getElementById('payroll_month').value = now.toLocaleString('default', { month: 'long' });
+            document.getElementById('payroll_month').value = now.getMonth() + 1; // JavaScript months are 0-indexed
             document.getElementById('payroll_year').value = now.getFullYear();
             document.getElementById('payroll_payment_date').valueAsDate = now;
 

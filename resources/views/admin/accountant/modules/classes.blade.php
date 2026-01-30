@@ -157,7 +157,7 @@
 
                 const response = await axios.get(`${API_BASE}/school-classes?${params.toString()}`);
                 const data = response.data;
-                const classes = data.classes?.data || data.classes || [];
+                const classes = Array.isArray(data) ? data : (data.classes?.data || data.classes || []);
 
                 renderClassesTable(classes);
             } catch (error) {

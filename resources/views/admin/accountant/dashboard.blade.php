@@ -7,6 +7,8 @@
     <title>Dashboard - Darasa Finance</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <style>
         /* Skeleton Loading Animation */
         @keyframes shimmer {
@@ -287,6 +289,32 @@
                 <button onclick="loadAnalytics('yearly')" id="btn-yearly" class="analytics-btn px-4 md:px-6 py-2 md:py-3 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 transition font-semibold text-sm md:text-base shadow-md">
                     This Year
                 </button>
+                <button onclick="showCustomDatePicker()" id="btn-custom" class="analytics-btn px-4 md:px-6 py-2 md:py-3 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 transition font-semibold text-sm md:text-base shadow-md">
+                    Custom Date
+                </button>
+            </div>
+
+            <!-- Custom Date Range Picker (Initially Hidden) -->
+            <div id="custom-date-picker" class="hidden mb-4 md:mb-6 bg-white p-4 rounded-lg shadow-md">
+                <h3 class="text-lg font-bold text-gray-800 mb-3">Select Custom Date Range</h3>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">From Date</label>
+                        <input type="text" id="custom-from-date" class="w-full border-2 border-gray-300 rounded-lg px-3 py-2" placeholder="Select start date">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">To Date</label>
+                        <input type="text" id="custom-to-date" class="w-full border-2 border-gray-300 rounded-lg px-3 py-2" placeholder="Select end date">
+                    </div>
+                    <div class="flex items-end gap-2">
+                        <button onclick="applyCustomDateRange()" class="flex-1 bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg transition font-semibold">
+                            Apply
+                        </button>
+                        <button onclick="hideCustomDatePicker()" class="flex-1 bg-gray-400 hover:bg-gray-500 text-white px-4 py-2 rounded-lg transition font-semibold">
+                            Cancel
+                        </button>
+                    </div>
+                </div>
             </div>
 
             <!-- Analytics Summary Cards -->
@@ -303,14 +331,15 @@
                 <div class="bg-white rounded-xl shadow-lg p-4 md:p-6">
                     <h3 class="text-base md:text-lg font-bold text-gray-800 mb-4">Fee Collection Trend</h3>
                     <div id="chart-container-1" class="relative" style="height: 250px;">
-                        <div class="skeleton rounded-lg h-full"></div>
+                        <canvas id="collectionChart"></canvas>
                     </div>
                 </div>
                 <div class="bg-white rounded-xl shadow-lg p-4 md:p-6">
-                    <h3 class="text-base md:text-lg font-bold text-gray-800 mb-4">Books Distribution</h3>
+                    <h3 class="text-base md:text-lg font-bold text-gray-800 mb-4">Books Distribution (Fee Collections)</h3>
                     <div id="chart-container-2" class="relative" style="height: 250px;">
-                        <div class="skeleton rounded-lg h-full"></div>
+                        <canvas id="paymentMethodsChart"></canvas>
                     </div>
+                    <div id="books-legend" class="mt-4 grid grid-cols-2 gap-2 text-xs"></div>
                 </div>
             </div>
 
@@ -329,7 +358,7 @@
                     <!-- Particular checkboxes will be populated here -->
                 </div>
                 <div id="chart-container-particulars" class="relative" style="height: 350px;">
-                    <div class="skeleton rounded-lg h-full"></div>
+                    <canvas id="particularsChart"></canvas>
                 </div>
             </div>
 
@@ -665,19 +694,26 @@
 
         // Initialize on page load with delay to prevent blackout
         document.addEventListener('DOMContentLoaded', function() {
-            // Load analytics with skeleton
-            setTimeout(() => {
-                loadAnalytics('today');
-            }, 100);
+            // Initialize charts first
+            initCharts();
 
-            // Lazy load charts after a delay
-            setTimeout(() => {
-                initCharts();
-            }, 500);
+            // Initialize Flatpickr for custom date range
+            flatpickr("#custom-from-date", {
+                dateFormat: "Y-m-d",
+                maxDate: "today"
+            });
+
+            flatpickr("#custom-to-date", {
+                dateFormat: "Y-m-d",
+                maxDate: "today"
+            });
+
+            // Analytics will be loaded automatically after charts are initialized
         });
 
         function loadAnalytics(period) {
             currentPeriod = period;
+            console.log('Loading analytics for period:', period);
 
             // Update active button
             document.querySelectorAll('.analytics-btn').forEach(btn => {
@@ -685,8 +721,10 @@
                 btn.classList.add('bg-gray-200', 'text-gray-700');
             });
             const activeBtn = document.getElementById('btn-' + period);
-            activeBtn.classList.remove('bg-gray-200', 'text-gray-700');
-            activeBtn.classList.add('bg-blue-500', 'text-white', 'shadow-lg');
+            if (activeBtn) {
+                activeBtn.classList.remove('bg-gray-200', 'text-gray-700');
+                activeBtn.classList.add('bg-blue-500', 'text-white', 'shadow-lg');
+            }
 
             // Show skeleton while loading
             showSkeletonCards();
@@ -694,10 +732,11 @@
             // Fetch analytics data
             axios.get('/api/analytics/' + period)
                 .then(response => {
+                    console.log('Analytics data received for', period, ':', response.data);
                     setTimeout(() => updateAnalyticsUI(response.data), 300);
                 })
                 .catch(error => {
-                    console.error('Error loading analytics:', error);
+                    console.error('Error loading analytics for', period, ':', error);
                     setTimeout(() => showSampleData(period), 300);
                 });
         }
@@ -732,41 +771,53 @@
 
         function updateAnalyticsUI(data) {
             // Calculate collection rate
-            const totalExpected = data.summary.total_collections + data.summary.outstanding_balance;
+            const totalExpected = data.summary.total_expected || 0;
+            const totalCollections = data.summary.total_collections || 0;
             const collectionRate = totalExpected > 0
-                ? ((data.summary.total_collections / totalExpected) * 100).toFixed(1)
+                ? ((totalCollections / totalExpected) * 100).toFixed(1)
                 : 0;
 
             renderAnalyticsCards({
-                collected: data.summary.total_collections,
+                collected: totalCollections,
                 expected: totalExpected,
-                overdue: data.summary.outstanding_balance,
-                students: data.summary.active_students,
-                rate: collectionRate,
-                expenses: data.summary.total_expenses,
-                salaries: data.summary.salary_expenses,
-                netIncome: data.summary.net_income
+                overdue: data.summary.outstanding_balance || 0,
+                students: data.summary.active_students || 0,
+                rate: collectionRate
             }, currentPeriod);
 
-            // Update student completion stats
-            if (data.student_completion) {
-                document.getElementById('total-students').textContent = data.student_completion.total_students;
-                document.getElementById('completed-students').textContent = data.student_completion.completed_students;
-                document.getElementById('incomplete-students').textContent = data.student_completion.incomplete_students;
-                document.getElementById('completion-rate').textContent = data.student_completion.completion_rate + '%';
-            }
-
             // Update class statistics
-            if (data.class_statistics) {
-                allClassStats = data.class_statistics;
+            if (data.class_stats && data.class_stats.length > 0) {
+                allClassStats = data.class_stats;
                 displayClassStats(allClassStats);
                 populateClassFilter(allClassStats);
+
+                // Calculate totals for summary cards
+                const totalStudents = allClassStats.reduce((sum, stat) => sum + stat.total_students, 0);
+                const completedStudents = allClassStats.reduce((sum, stat) => sum + stat.completed_students, 0);
+                const incompleteStudents = totalStudents - completedStudents;
+                const overallRate = totalStudents > 0 ? ((completedStudents / totalStudents) * 100).toFixed(1) : 0;
+
+                document.getElementById('total-students').textContent = totalStudents;
+                document.getElementById('completed-students').textContent = completedStudents;
+                document.getElementById('incomplete-students').textContent = incompleteStudents;
+                document.getElementById('completion-rate').textContent = overallRate + '%';
+            } else {
+                // No class stats available
+                allClassStats = [];
+                displayClassStats([]);
+                document.getElementById('total-students').textContent = '0';
+                document.getElementById('completed-students').textContent = '0';
+                document.getElementById('incomplete-students').textContent = '0';
+                document.getElementById('completion-rate').textContent = '0%';
             }
 
             // Update particular statistics
-            if (data.particular_statistics) {
-                allParticularStats = data.particular_statistics;
+            if (data.particulars_data && data.particulars_data.length > 0) {
+                allParticularStats = data.particulars_data;
                 populateParticularCheckboxes(allParticularStats);
+            } else {
+                allParticularStats = [];
+                populateParticularCheckboxes([]);
             }
 
             // Update charts with real data
@@ -795,16 +846,18 @@
                 return;
             }
 
-            tbody.innerHTML = stats.map(stat => `
+            tbody.innerHTML = stats.map(stat => {
+                const incompleteStudents = stat.total_students - stat.completed_students;
+                return `
                 <tr class="border-b hover:bg-gray-50">
-                    <td class="px-4 py-3 font-semibold">${stat.class}</td>
+                    <td class="px-4 py-3 font-semibold">${stat.class_name}</td>
                     <td class="px-4 py-3">
                         <span class="font-bold text-green-600">${stat.completed_students}</span> /
                         <span class="text-gray-600">${stat.total_students}</span>
-                        <span class="text-xs text-gray-500">(${stat.incomplete_students} incomplete)</span>
+                        <span class="text-xs text-gray-500">(${incompleteStudents} incomplete)</span>
                     </td>
-                    <td class="px-4 py-3 font-semibold">TSH ${stat.total_expected.toLocaleString()}</td>
-                    <td class="px-4 py-3 font-semibold text-green-600">TSH ${stat.total_collected.toLocaleString()}</td>
+                    <td class="px-4 py-3 font-semibold">TSH ${Math.round(stat.expected_amount).toLocaleString()}</td>
+                    <td class="px-4 py-3 font-semibold text-green-600">TSH ${Math.round(stat.collected_amount).toLocaleString()}</td>
                     <td class="px-4 py-3">
                         <div class="flex items-center gap-2">
                             <div class="flex-1 bg-gray-200 rounded-full h-2">
@@ -814,7 +867,7 @@
                         </div>
                     </td>
                 </tr>
-            `).join('');
+            `}).join('');
         }
 
         function populateClassFilter(stats) {
@@ -823,7 +876,7 @@
 
             filter.innerHTML = '<option value="">All Classes</option>';
             stats.forEach(stat => {
-                filter.innerHTML += `<option value="${stat.class}">${stat.class}</option>`;
+                filter.innerHTML += `<option value="${stat.class_name}">${stat.class_name}</option>`;
             });
 
             if (currentValue) {
@@ -839,7 +892,7 @@
 
             // Filter by class if selected
             if (selectedClass) {
-                filteredStats = filteredStats.filter(stat => stat.class === selectedClass);
+                filteredStats = filteredStats.filter(stat => stat.class_name === selectedClass);
             }
 
             // Apply search filter if there's a search term
@@ -1076,8 +1129,8 @@
                 const filteredStats = allParticularStats.filter(stat => selectedParticulars.has(stat.particular_name));
 
                 particularsChart.data.labels = filteredStats.map(s => s.particular_name);
-                particularsChart.data.datasets[0].data = filteredStats.map(s => s.total_expected);
-                particularsChart.data.datasets[1].data = filteredStats.map(s => s.total_collected);
+                particularsChart.data.datasets[0].data = filteredStats.map(s => s.expected);
+                particularsChart.data.datasets[1].data = filteredStats.map(s => s.collected);
                 particularsChart.update();
             }
         }
@@ -1088,7 +1141,7 @@
                     <div class="flex justify-between items-start">
                         <div class="flex-1">
                             <p class="text-blue-100 text-xs md:text-sm font-medium">Total Fee Collected</p>
-                            <h3 class="text-2xl md:text-3xl font-bold mt-2">TSH ${data.collected.toLocaleString()}</h3>
+                            <h3 class="text-2xl md:text-3xl font-bold mt-2">TSH ${Math.round(data.collected).toLocaleString()}</h3>
                             <p class="text-xs md:text-sm mt-2 text-blue-100">${period}</p>
                         </div>
                         <div class="text-3xl md:text-4xl opacity-80">💰</div>
@@ -1099,7 +1152,7 @@
                     <div class="flex justify-between items-start">
                         <div class="flex-1">
                             <p class="text-green-100 text-xs md:text-sm font-medium">Expected Fees</p>
-                            <h3 class="text-2xl md:text-3xl font-bold mt-2">TSH ${data.expected.toLocaleString()}</h3>
+                            <h3 class="text-2xl md:text-3xl font-bold mt-2">TSH ${Math.round(data.expected).toLocaleString()}</h3>
                             <p class="text-xs md:text-sm mt-2 text-green-100">${period}</p>
                         </div>
                         <div class="text-3xl md:text-4xl opacity-80">📊</div>
@@ -1110,7 +1163,7 @@
                     <div class="flex justify-between items-start">
                         <div class="flex-1">
                             <p class="text-red-100 text-xs md:text-sm font-medium">Total Overdue</p>
-                            <h3 class="text-2xl md:text-3xl font-bold mt-2">TSH ${data.overdue.toLocaleString()}</h3>
+                            <h3 class="text-2xl md:text-3xl font-bold mt-2">TSH ${Math.round(data.overdue).toLocaleString()}</h3>
                             <p class="text-xs md:text-sm mt-2 text-red-100">${data.students} students</p>
                         </div>
                         <div class="text-3xl md:text-4xl opacity-80">💸</div>
@@ -1135,19 +1188,14 @@
         function initCharts() {
             if (chartsInitialized) return;
 
-            // Remove skeletons and add canvases
-            document.getElementById('chart-container-1').innerHTML = '<canvas id="collectionChart"></canvas>';
-            document.getElementById('chart-container-2').innerHTML = '<canvas id="paymentMethodsChart"></canvas>';
-            document.getElementById('chart-container-particulars').innerHTML = '<canvas id="particularsChart"></canvas>';
-
             // Dynamically load Chart.js
             const script = document.createElement('script');
             script.src = 'https://cdn.jsdelivr.net/npm/chart.js';
             script.onload = function() {
-                setTimeout(() => {
-                    createCharts();
-                    chartsInitialized = true;
-                }, 200);
+                createCharts();
+                chartsInitialized = true;
+                // Load analytics after charts are ready
+                loadAnalytics('today');
             };
             document.head.appendChild(script);
         }
@@ -1164,8 +1212,14 @@
                         data: [1200000, 1500000, 1100000, 1800000, 2000000, 900000, 1500000],
                         borderColor: 'rgb(59, 130, 246)',
                         backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        fill: false,
                         tension: 0.4,
-                        borderWidth: 3
+                        borderWidth: 3,
+                        pointRadius: 4,
+                        pointBackgroundColor: 'rgb(59, 130, 246)',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2,
+                        pointHoverRadius: 6
                     }]
                 },
                 options: {
@@ -1321,24 +1375,133 @@
         }
 
         function updateChartsData(data) {
-            // Update collection trend chart
+            console.log('Updating charts with data:', data);
+
+            // Update collection trend chart - destroy and recreate for reliable redraw
             if (collectionChart && data.collection_trend) {
-                collectionChart.data.labels = data.collection_trend.map(d => d.label);
-                collectionChart.data.datasets[0].data = data.collection_trend.map(d => d.amount);
-                collectionChart.update();
+                const labels = data.collection_trend.map(d => d.label);
+                const amounts = data.collection_trend.map(d => parseFloat(d.amount) || 0);
+                const maxAmount = Math.max(...amounts, 100); // Minimum 100 for scale
+
+                console.log('Line graph update:', { points: labels.length, max: maxAmount, amounts: amounts });
+
+                // Destroy and recreate for clean redraw
+                const canvas = document.getElementById('collectionChart');
+                collectionChart.destroy();
+
+                collectionChart = new Chart(canvas.getContext('2d'), {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Collections',
+                            data: amounts,
+                            borderColor: 'rgb(59, 130, 246)',
+                            backgroundColor: 'rgba(59, 130, 246, 0.15)',
+                            fill: true,
+                            tension: 0.4,
+                            borderWidth: 3,
+                            pointRadius: 5,
+                            pointBackgroundColor: 'rgb(59, 130, 246)',
+                            pointBorderColor: '#ffffff',
+                            pointBorderWidth: 2,
+                            pointHoverRadius: 8
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        animation: { duration: 600 },
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                backgroundColor: 'rgba(0,0,0,0.8)',
+                                padding: 12,
+                                titleFont: { size: 14 },
+                                bodyFont: { size: 13 },
+                                callbacks: {
+                                    label: ctx => 'TSH ' + ctx.parsed.y.toLocaleString()
+                                }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                min: 0,
+                                suggestedMax: maxAmount * 1.2,
+                                ticks: {
+                                    callback: v => v >= 1000000 ? 'TSH ' + (v/1000000).toFixed(1) + 'M' : (v >= 1000 ? 'TSH ' + (v/1000).toFixed(0) + 'K' : 'TSH ' + v)
+                                },
+                                grid: { color: 'rgba(0,0,0,0.05)' }
+                            },
+                            x: { grid: { display: false } }
+                        }
+                    }
+                });
+                console.log('Line chart recreated successfully');
             }
 
-            // Update books distribution chart
+            // Update books distribution chart and legend
             if (paymentMethodsChart && data.books_distribution) {
-                if (data.books_distribution.length > 0) {
+                const colors = [
+                    'rgb(59, 130, 246)',
+                    'rgb(16, 185, 129)',
+                    'rgb(249, 115, 22)',
+                    'rgb(168, 85, 247)',
+                    'rgb(236, 72, 153)',
+                    'rgb(251, 191, 36)',
+                    'rgb(139, 92, 246)',
+                    'rgb(14, 165, 233)'
+                ];
+
+                if (data.books_distribution && data.books_distribution.length > 0) {
+                    console.log('Updating pie chart with', data.books_distribution.length, 'books');
+                    // Update chart data
                     paymentMethodsChart.data.labels = data.books_distribution.map(d => d.name);
                     paymentMethodsChart.data.datasets[0].data = data.books_distribution.map(d => d.amount);
+                    paymentMethodsChart.data.datasets[0].backgroundColor = data.books_distribution.map((d, i) => colors[i % colors.length]);
+
+                    // Calculate total for percentage
+                    const total = data.books_distribution.reduce((sum, book) => sum + parseFloat(book.amount), 0);
+                    console.log('Total for pie chart:', total);
+
+                    // Update legend with percentages
+                    const legendHTML = data.books_distribution.map((book, index) => {
+                        const color = colors[index % colors.length];
+                        const percentage = total > 0 ? ((parseFloat(book.amount) / total) * 100).toFixed(1) : 0;
+                        return `
+                            <div class="flex items-center gap-2">
+                                <div class="w-3 h-3 rounded-full" style="background-color: ${color}"></div>
+                                <span class="text-gray-700 font-medium">${book.name}: ${percentage}%</span>
+                            </div>
+                        `;
+                    }).join('');
+                    document.getElementById('books-legend').innerHTML = legendHTML;
                 } else {
                     // Show message when no book data is available
                     paymentMethodsChart.data.labels = ['No book transactions yet'];
                     paymentMethodsChart.data.datasets[0].data = [1];
+                    paymentMethodsChart.data.datasets[0].backgroundColor = ['rgb(209, 213, 219)'];
+                    document.getElementById('books-legend').innerHTML = '<p class="text-gray-500 text-sm col-span-2">No book data available</p>';
                 }
                 paymentMethodsChart.update();
+            }
+
+            // Update particulars chart
+            if (particularsChart && data.particulars_data) {
+                if (data.particulars_data.length > 0) {
+                    const filteredStats = data.particulars_data.filter(stat =>
+                        selectedParticulars.size === 0 || selectedParticulars.has(stat.particular_name)
+                    );
+                    particularsChart.data.labels = filteredStats.map(s => s.particular_name);
+                    particularsChart.data.datasets[0].data = filteredStats.map(s => s.expected);
+                    particularsChart.data.datasets[1].data = filteredStats.map(s => s.collected);
+                } else {
+                    particularsChart.data.labels = [];
+                    particularsChart.data.datasets[0].data = [];
+                    particularsChart.data.datasets[1].data = [];
+                }
+                particularsChart.update();
             }
         }
 
@@ -1367,6 +1530,63 @@
                 submenu.classList.add('hidden');
                 arrow.classList.remove('rotate-180');
             }
+        }
+
+        // Custom date picker functions
+        function showCustomDatePicker() {
+            document.getElementById('custom-date-picker').classList.remove('hidden');
+
+            // Update button states
+            document.querySelectorAll('.analytics-btn').forEach(btn => {
+                btn.classList.remove('bg-blue-500', 'text-white', 'shadow-lg');
+                btn.classList.add('bg-gray-200', 'text-gray-700');
+            });
+            const customBtn = document.getElementById('btn-custom');
+            customBtn.classList.remove('bg-gray-200', 'text-gray-700');
+            customBtn.classList.add('bg-blue-500', 'text-white', 'shadow-lg');
+        }
+
+        function hideCustomDatePicker() {
+            document.getElementById('custom-date-picker').classList.add('hidden');
+            document.getElementById('custom-from-date').value = '';
+            document.getElementById('custom-to-date').value = '';
+
+            // Reset to today view
+            loadAnalytics('today');
+        }
+
+        function applyCustomDateRange() {
+            const fromDate = document.getElementById('custom-from-date').value;
+            const toDate = document.getElementById('custom-to-date').value;
+
+            if (!fromDate || !toDate) {
+                alert('Please select both start and end dates');
+                return;
+            }
+
+            if (new Date(fromDate) > new Date(toDate)) {
+                alert('Start date must be before end date');
+                return;
+            }
+
+            // Show skeleton while loading
+            showSkeletonCards();
+
+            // Fetch analytics data with custom date range
+            axios.get('/api/analytics/custom', {
+                params: {
+                    from_date: fromDate,
+                    to_date: toDate
+                }
+            })
+            .then(response => {
+                setTimeout(() => updateAnalyticsUI(response.data), 300);
+            })
+            .catch(error => {
+                console.error('Error loading custom analytics:', error);
+                alert('Error loading analytics for custom date range. The API endpoint may not be implemented yet.');
+                hideCustomDatePicker();
+            });
         }
     </script>
 </body>

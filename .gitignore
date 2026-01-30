@@ -35,3 +35,7 @@ Thumbs.db
 
 Homestead.json
 Homestead.yaml
+
+# Temporary files
+tmpclaude-*
+temp_log.txt

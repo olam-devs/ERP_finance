@@ -7,6 +7,8 @@
     <title>Expense Management - Darasa Finance</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 </head>
 <body class="bg-gray-50">
     <!-- Navigation -->
@@ -25,19 +27,47 @@
     </nav>
 
     <div class="container mx-auto px-4 py-8">
-        <!-- Summary Cards -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <div class="bg-yellow-500 text-white rounded-lg shadow-lg p-6">
-                <h3 class="text-sm font-semibold opacity-90">Pending Expenses</h3>
-                <p class="text-3xl font-bold mt-2" id="pending-total">TSH 0</p>
-            </div>
-            <div class="bg-green-500 text-white rounded-lg shadow-lg p-6">
-                <h3 class="text-sm font-semibold opacity-90">Processed Expenses</h3>
-                <p class="text-3xl font-bold mt-2" id="processed-total">TSH 0</p>
-            </div>
-            <div class="bg-blue-500 text-white rounded-lg shadow-lg p-6">
-                <h3 class="text-sm font-semibold opacity-90">Total Expenses</h3>
-                <p class="text-3xl font-bold mt-2" id="total-count">0</p>
+        <!-- Summary Cards with Calendar Filter -->
+        <div class="mb-6">
+            <div class="bg-white rounded-lg shadow-lg p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-bold text-gray-800">📊 Expense Summary</h2>
+                    <div class="flex gap-3 items-center">
+                        <label class="text-sm font-medium text-gray-700">From:</label>
+                        <input type="date" id="summary-from-date" class="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm">
+                        <label class="text-sm font-medium text-gray-700">To:</label>
+                        <input type="date" id="summary-to-date" class="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm">
+                        <button onclick="updateSummary()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition font-semibold text-sm">
+                            📅 Filter
+                        </button>
+                        <button onclick="clearSummaryFilter()" class="bg-gray-200 text-gray-700 px-3 py-2 rounded-lg hover:bg-gray-300 transition font-semibold text-sm">
+                            Clear
+                        </button>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <!-- Pending Expenses -->
+                    <div class="bg-gradient-to-br from-yellow-500 to-orange-500 text-white p-6 rounded-xl shadow-lg">
+                        <h3 class="text-sm font-semibold opacity-90">Pending Expenses</h3>
+                        <p class="text-3xl font-bold mt-2" id="pending-count">0</p>
+                        <p class="text-sm opacity-90 mt-1">TSh <span id="pending-amount">0</span></p>
+                    </div>
+
+                    <!-- Processed Expenses -->
+                    <div class="bg-gradient-to-br from-green-500 to-teal-500 text-white p-6 rounded-xl shadow-lg">
+                        <h3 class="text-sm font-semibold opacity-90">Processed Expenses</h3>
+                        <p class="text-3xl font-bold mt-2" id="processed-count">0</p>
+                        <p class="text-sm opacity-90 mt-1">TSh <span id="processed-amount">0</span></p>
+                    </div>
+
+                    <!-- Total Expenses -->
+                    <div class="bg-gradient-to-br from-blue-500 to-indigo-600 text-white p-6 rounded-xl shadow-lg">
+                        <h3 class="text-sm font-semibold opacity-90">Total Expenses</h3>
+                        <p class="text-3xl font-bold mt-2" id="total-count">0</p>
+                        <p class="text-sm opacity-90 mt-1">TSh <span id="total-amount">0</span></p>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -55,14 +85,24 @@
                 </div>
                 <div>
                     <label class="block text-sm font-semibold text-gray-700 mb-2">Select Book *</label>
-                    <select id="book_id" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                        <option value="">-- Select Book --</option>
+                    <select id="book_id" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        <option value="">-- Select Book (Optional) --</option>
                     </select>
                     <p class="text-sm text-gray-600 mt-1">Available Balance: <span id="book-balance" class="font-bold text-green-600">TSH 0</span></p>
                 </div>
                 <div>
                     <label class="block text-sm font-semibold text-gray-700 mb-2">Amount *</label>
                     <input type="number" id="amount" step="0.01" min="0.01" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">Status *</label>
+                    <select id="status" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        <option value="pending">Pending (Can be edited/canceled later)</option>
+                        <option value="processed">Processed (Money removed immediately)</option>
+                    </select>
+                    <p class="text-xs text-gray-500 mt-1">
+                        <strong>Note:</strong> Processed expenses cannot be undone or deleted
+                    </p>
                 </div>
                 <div class="md:col-span-2">
                     <label class="block text-sm font-semibold text-gray-700 mb-2">Description</label>
@@ -76,10 +116,10 @@
             </form>
         </div>
 
-        <!-- Filters -->
+        <!-- Date Range Filter & Filters -->
         <div class="bg-white rounded-lg shadow-lg p-6 mb-8">
             <h2 class="text-xl font-bold text-gray-800 mb-4">Filter Expenses</h2>
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
                 <select id="filter-status" class="px-4 py-2 border border-gray-300 rounded-lg">
                     <option value="">All Statuses</option>
                     <option value="pending">Pending</option>
@@ -89,12 +129,17 @@
                 <select id="filter-book" class="px-4 py-2 border border-gray-300 rounded-lg">
                     <option value="">All Books</option>
                 </select>
-                <input type="date" id="filter-from" class="px-4 py-2 border border-gray-300 rounded-lg">
-                <input type="date" id="filter-to" class="px-4 py-2 border border-gray-300 rounded-lg">
+                <input type="text" id="filter-from" placeholder="From Date" class="px-4 py-2 border border-gray-300 rounded-lg">
+                <input type="text" id="filter-to" placeholder="To Date" class="px-4 py-2 border border-gray-300 rounded-lg">
+                <div class="flex gap-2">
+                    <button onclick="loadExpenses()" class="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition font-semibold">
+                        Apply
+                    </button>
+                    <button onclick="clearFilters()" class="flex-1 bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition font-semibold">
+                        Clear
+                    </button>
+                </div>
             </div>
-            <button onclick="loadExpenses()" class="mt-4 bg-gray-700 text-white px-6 py-2 rounded-lg hover:bg-gray-800 transition">
-                Apply Filters
-            </button>
         </div>
 
         <!-- Expenses List -->
@@ -131,6 +176,8 @@
         document.addEventListener('DOMContentLoaded', function() {
             loadBooks();
             loadExpenses();
+            initializeDatePickers();
+            updateSummary(); // Load initial summary
 
             document.getElementById('transaction_date').valueAsDate = new Date();
 
@@ -152,24 +199,84 @@
             });
         });
 
+        function initializeDatePickers() {
+            flatpickr("#filter-from", {
+                dateFormat: "Y-m-d",
+                maxDate: "today"
+            });
+
+            flatpickr("#filter-to", {
+                dateFormat: "Y-m-d",
+                maxDate: "today"
+            });
+
+            flatpickr("#summary-from-date", {
+                dateFormat: "Y-m-d",
+                maxDate: "today"
+            });
+
+            flatpickr("#summary-to-date", {
+                dateFormat: "Y-m-d",
+                maxDate: "today"
+            });
+        }
+
+        function updateSummary() {
+            const fromDate = document.getElementById('summary-from-date').value;
+            const toDate = document.getElementById('summary-to-date').value;
+
+            let url = '/api/expenses/summary';
+            const params = [];
+            if (fromDate) params.push('from_date=' + fromDate);
+            if (toDate) params.push('to_date=' + toDate);
+            if (params.length > 0) url += '?' + params.join('&');
+
+            axios.get(url)
+                .then(response => {
+                    const data = response.data;
+                    document.getElementById('pending-count').textContent = data.pending_count || 0;
+                    document.getElementById('pending-amount').textContent = (data.pending_amount || 0).toLocaleString();
+                    document.getElementById('processed-count').textContent = data.processed_count || 0;
+                    document.getElementById('processed-amount').textContent = (data.processed_amount || 0).toLocaleString();
+                    document.getElementById('total-count').textContent = data.total_count || 0;
+                    document.getElementById('total-amount').textContent = (data.total_amount || 0).toLocaleString();
+                })
+                .catch(error => {
+                    console.error('Error loading summary:', error);
+                });
+        }
+
+        function clearSummaryFilter() {
+            document.getElementById('summary-from-date').value = '';
+            document.getElementById('summary-to-date').value = '';
+            updateSummary();
+        }
+
+
         function loadBooks() {
             axios.get('/api/books')
                 .then(response => {
-                    books = response.data.books.data || response.data.books;
+                    books = Array.isArray(response.data) ? response.data :
+                            (response.data.books?.data || response.data.books || response.data);
                     const bookSelect = document.getElementById('book_id');
                     const filterBook = document.getElementById('filter-book');
 
                     bookSelect.innerHTML = '<option value="">-- Select Book --</option>';
                     filterBook.innerHTML = '<option value="">All Books</option>';
 
-                    books.forEach(book => {
-                        const option = `<option value="${book.id}">${book.name}</option>`;
-                        bookSelect.innerHTML += option;
-                        filterBook.innerHTML += option;
-                    });
+                    if (Array.isArray(books)) {
+                        books.forEach(book => {
+                            const option = `<option value="${book.id}">${book.name}</option>`;
+                            bookSelect.innerHTML += option;
+                            filterBook.innerHTML += option;
+                        });
+                    } else {
+                        console.error('Books data is not an array:', books);
+                    }
                 })
                 .catch(error => {
                     console.error('Error loading books:', error);
+                    alert('Failed to load books. Please refresh the page.');
                 });
         }
 
@@ -191,9 +298,13 @@
                 .then(response => {
                     const data = response.data;
 
-                    document.getElementById('pending-total').textContent = 'TSH ' + (data.summary.total_pending || 0).toLocaleString();
-                    document.getElementById('processed-total').textContent = 'TSH ' + (data.summary.total_processed || 0).toLocaleString();
+                    // Update summary cards with filtered data
+                    document.getElementById('pending-count').textContent = data.summary.pending_count || 0;
+                    document.getElementById('pending-amount').textContent = (data.summary.total_pending || 0).toLocaleString();
+                    document.getElementById('processed-count').textContent = data.summary.processed_count || 0;
+                    document.getElementById('processed-amount').textContent = (data.summary.total_processed || 0).toLocaleString();
                     document.getElementById('total-count').textContent = data.summary.total_count || 0;
+                    document.getElementById('total-amount').textContent = (data.summary.total_amount || 0).toLocaleString();
 
                     displayExpenses(data.expenses.data);
                     displayPagination(data.expenses);
@@ -228,12 +339,14 @@
                         <button onclick="editExpense(${expense.id})" class="bg-blue-500 text-white px-3 py-1 rounded text-sm hover:bg-blue-600 mr-2">
                             Edit
                         </button>
-                        <button onclick="cancelExpense(${expense.id})" class="bg-red-500 text-white px-3 py-1 rounded text-sm hover:bg-red-600">
-                            Cancel
+                        <button onclick="deleteExpense(${expense.id})" class="bg-red-500 text-white px-3 py-1 rounded text-sm hover:bg-red-600">
+                            Delete
                         </button>
                     `;
+                } else if (expense.status === 'processed') {
+                    actions = `<span class="text-gray-400 text-sm">Cannot be modified</span>`;
                 } else {
-                    actions = `<span class="text-gray-400 text-sm">No actions</span>`;
+                    actions = `<span class="text-gray-400 text-sm">Cancelled</span>`;
                 }
 
                 return `
@@ -269,6 +382,7 @@
         }
 
         function createExpense() {
+            const status = document.getElementById('status').value;
             const data = {
                 expense_name: document.getElementById('expense_name').value,
                 transaction_date: document.getElementById('transaction_date').value,
@@ -277,13 +391,25 @@
                 description: document.getElementById('description').value,
             };
 
+            // Create as pending first
             axios.post('/api/expenses', data)
+                .then(response => {
+                    const expense = response.data;
+
+                    // If user selected "processed", process it immediately
+                    if (status === 'processed') {
+                        return axios.post(`/api/expenses/${expense.id}/process`);
+                    }
+
+                    return Promise.resolve(response);
+                })
                 .then(response => {
                     alert('Expense created successfully!');
                     document.getElementById('expense-form').reset();
                     document.getElementById('transaction_date').valueAsDate = new Date();
                     document.getElementById('book-balance').textContent = 'TSH 0';
                     loadExpenses();
+                    updateSummary(); // Refresh summary cards
                 })
                 .catch(error => {
                     console.error('Error creating expense:', error);
@@ -296,43 +422,58 @@
         }
 
         function processExpense(id) {
-            if (!confirm('Are you sure you want to process this expense? This will deduct money from the book.')) {
+            if (!confirm('Are you sure you want to process this expense? This will deduct money from the book and CANNOT be undone.')) {
                 return;
             }
 
             axios.post(`/api/expenses/${id}/process`)
                 .then(response => {
-                    alert(response.data.message + '\nNew Book Balance: TSH ' + response.data.new_book_balance.toLocaleString());
+                    alert('Expense processed successfully!');
                     loadExpenses(currentPage);
+                    updateSummary(); // Refresh summary cards
                 })
                 .catch(error => {
                     console.error('Error processing expense:', error);
                     if (error.response && error.response.data.message) {
                         alert(error.response.data.message);
+                    } else if (error.response && error.response.data.error) {
+                        alert(error.response.data.error);
                     } else {
                         alert('Error processing expense');
                     }
                 });
         }
 
-        function cancelExpense(id) {
-            if (!confirm('Are you sure you want to cancel this expense?')) {
+        function deleteExpense(id) {
+            if (!confirm('Are you sure you want to delete this pending expense?')) {
                 return;
             }
 
-            axios.post(`/api/expenses/${id}/cancel`)
+            axios.delete(`/api/expenses/${id}`)
                 .then(response => {
-                    alert('Expense cancelled successfully!');
+                    alert('Expense deleted successfully!');
                     loadExpenses(currentPage);
                 })
                 .catch(error => {
-                    console.error('Error cancelling expense:', error);
-                    alert('Error cancelling expense');
+                    console.error('Error deleting expense:', error);
+                    if (error.response && error.response.data.error) {
+                        alert(error.response.data.error);
+                    } else {
+                        alert('Error deleting expense');
+                    }
                 });
         }
 
         function editExpense(id) {
             alert('Edit functionality coming soon!');
+        }
+
+        function clearFilters() {
+            document.getElementById('filter-status').value = '';
+            document.getElementById('filter-book').value = '';
+            document.getElementById('filter-from').value = '';
+            document.getElementById('filter-to').value = '';
+            loadExpenses();
         }
     </script>
 </body>

@@ -32,7 +32,7 @@
 
         <!-- Header for each page -->
         <div class="header">
-            @if($school->logo_path && file_exists(storage_path('app/public/' . $school->logo_path)))
+            @if(isset($school) && $school->logo_path && file_exists(storage_path('app/public/' . $school->logo_path)))
                 <img src="{{ storage_path('app/public/' . $school->logo_path) }}" alt="School Logo" class="school-logo">
             @endif
             <div class="school-name">{{ $school->school_name ?? 'Darasa Secondary School' }}</div>

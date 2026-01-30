@@ -562,7 +562,10 @@
                 const response = await axios.get(`${API_BASE}/classes`);
                 const classSelect = document.getElementById('resolve_class');
                 classSelect.innerHTML = '<option value="">Select Class...</option>';
-                response.data.forEach(className => {
+                const classes = response.data.classes || response.data;
+                classes.forEach(classItem => {
+                    // Handle both string array and object array
+                    const className = typeof classItem === 'string' ? classItem : (classItem.name || classItem);
                     classSelect.innerHTML += `<option value="${className}">${className}</option>`;
                 });
             } catch (error) {
@@ -839,7 +842,7 @@
             const payload = {
                 student_id: parseInt(studentId),
                 particular_id: parseInt(particularId),
-                amount: amount,
+                amount_to_resolve: amount,
                 book_id: parseInt(bookId),
                 date: date,
                 notes: notes

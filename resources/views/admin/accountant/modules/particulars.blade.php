@@ -65,6 +65,8 @@
         let allParticulars = [];
         let allStudents = [];
         let allClasses = [];
+        let allAcademicYears = [];
+        let selectedAcademicYearId = null;
 
         // Configure axios
         axios.defaults.headers.common['X-CSRF-TOKEN'] = document.querySelector('meta[name="csrf-token"]').content;
@@ -79,15 +81,25 @@
 
         async function loadInitialData() {
             try {
-                const [booksResponse, studentsResponse, classesResponse] = await Promise.all([
+                const [booksResponse, studentsResponse, classesResponse, academicYearsResponse] = await Promise.all([
                     axios.get(`${API_BASE}/books`),
                     axios.get(`${API_BASE}/students`),
-                    axios.get(`${API_BASE}/classes`)
+                    axios.get(`${API_BASE}/classes`),
+                    axios.get(`${API_BASE}/academic-years/active`)
                 ]);
 
                 allBooks = booksResponse.data;
                 allStudents = studentsResponse.data.students || studentsResponse.data;
                 allClasses = classesResponse.data;
+                allAcademicYears = academicYearsResponse.data;
+
+                // Set default selected academic year to current
+                const currentYear = allAcademicYears.find(y => y.is_current);
+                if (currentYear) {
+                    selectedAcademicYearId = currentYear.id;
+                } else if (allAcademicYears.length > 0) {
+                    selectedAcademicYearId = allAcademicYears[0].id;
+                }
             } catch (error) {
                 console.error('Error loading initial data:', error);
             }
@@ -115,11 +127,7 @@
                                     </button>
                                     <button onclick="showAssignStudentsForm(${particular.id}, '${particular.name}')"
                                         class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg transition">
-                                        👥 Assign New
-                                    </button>
-                                    <button onclick="showExistingAssignmentsForm(${particular.id}, '${particular.name}')"
-                                        class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition">
-                                        📋 Existing Assignments
+                                        👥 Manage Assignments
                                     </button>
                                 </div>
                             </div>
@@ -275,6 +283,9 @@
 
         // ===== ASSIGN STUDENTS TO PARTICULAR =====
         async function showAssignStudentsForm(particularId, particularName) {
+            // Store for later use
+            currentParticularForExisting = { id: particularId, name: particularName };
+
             // Always reload classes and students fresh
             if (allClasses.length === 0) {
                 try {
@@ -286,9 +297,29 @@
                 }
             }
 
+            // Reload academic years if not loaded
+            if (allAcademicYears.length === 0) {
+                try {
+                    const academicYearsResponse = await axios.get(`${API_BASE}/academic-years/active`);
+                    allAcademicYears = academicYearsResponse.data;
+                    const currentYear = allAcademicYears.find(y => y.is_current);
+                    if (currentYear) {
+                        selectedAcademicYearId = currentYear.id;
+                    } else if (allAcademicYears.length > 0) {
+                        selectedAcademicYearId = allAcademicYears[0].id;
+                    }
+                } catch (error) {
+                    console.error('Error loading academic years:', error);
+                }
+            }
+
+            const academicYearOptions = allAcademicYears.map(year =>
+                `<option value="${year.id}" ${year.id === selectedAcademicYearId ? 'selected' : ''}>${year.name} ${year.is_current ? '(Current)' : ''}</option>`
+            ).join('');
+
             const classButtons = allClasses.map(cls =>
-                `<button type="button" onclick="loadStudentsByClass(${particularId}, ${cls.id}, '${cls.name}')"
-                    class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg font-bold transition transform hover:scale-105">
+                `<button type="button" onclick="loadStudentsForClass(${particularId}, ${cls.id}, '${cls.name}')"
+                    class="class-btn bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg font-bold transition transform hover:scale-105">
                     ${cls.name}
                 </button>`
             ).join('');
@@ -296,18 +327,27 @@
             const formHtml = `
                 <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto">
                     <div class="bg-white rounded-lg p-8 max-w-6xl w-full shadow-2xl m-4 max-h-[90vh] overflow-y-auto">
-                        <h3 class="text-2xl font-bold mb-4 text-green-600">Assign Students to: ${particularName}</h3>
+                        <h3 class="text-2xl font-bold mb-4 text-green-600">📋 Manage Assignments: ${particularName}</h3>
 
-                        <div class="mb-6 p-6 bg-green-50 rounded-lg border-2 border-green-300">
-                            <label class="block text-lg font-bold mb-4 text-center">📚 Select Class by Clicking Below:</label>
+                        <!-- Academic Year Selection (Required) -->
+                        <div class="mb-6 p-6 bg-yellow-50 rounded-lg border-2 border-yellow-400">
+                            <label class="block text-lg font-bold mb-3 text-center text-yellow-700">📅 Step 1: Select Academic Year (Required)</label>
+                            <div class="flex justify-center">
+                                <select id="academicYearSelect" class="w-64 border-2 border-yellow-400 rounded-lg px-4 py-3 text-lg font-semibold bg-white focus:border-yellow-600 focus:outline-none" onchange="onAcademicYearChange(this.value)">
+                                    ${academicYearOptions.length > 0 ? academicYearOptions : '<option value="">No Academic Years Available</option>'}
+                                </select>
+                            </div>
+                            <p class="text-sm text-yellow-600 text-center mt-2">All fee assignments will be linked to this academic year</p>
+                        </div>
+
+                        <div class="mb-6 p-6 bg-blue-50 rounded-lg border-2 border-blue-300">
+                            <label class="block text-lg font-bold mb-4 text-center">📚 Step 2: Select Class to View Students:</label>
                             <div class="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
                                 ${classButtons}
                             </div>
                         </div>
 
                         <div id="studentsListContainer" class="mb-6"></div>
-
-                        <div id="assignActionsContainer"></div>
 
                         <div class="flex gap-3 pt-4 border-t-2">
                             <button type="button" onclick="closeAssignForm()"
@@ -319,6 +359,305 @@
                 </div>
             `;
             document.getElementById('particularFormContainer').innerHTML = formHtml;
+        }
+
+        function onAcademicYearChange(yearId) {
+            selectedAcademicYearId = parseInt(yearId);
+            // Clear the students list when academic year changes
+            document.getElementById('studentsListContainer').innerHTML = '<p class="text-center text-gray-500 p-4">Select a class to view students for the selected academic year.</p>';
+        }
+
+        async function loadStudentsForClass(particularId, classId, className) {
+            if (!classId) {
+                document.getElementById('studentsListContainer').innerHTML = '';
+                return;
+            }
+
+            // Check if academic year is selected
+            if (!selectedAcademicYearId) {
+                alert('⚠️ Please select an Academic Year first');
+                return;
+            }
+
+            // Show loading
+            document.getElementById('studentsListContainer').innerHTML = '<p class="text-center text-blue-600 p-4">⏳ Loading students...</p>';
+
+            try {
+                // Load all students with assignment status for this particular and academic year
+                const response = await axios.get(`${API_BASE}/particulars/${particularId}/students-for-new-assignment?academic_year_id=${selectedAcademicYearId}`);
+                const allStudents = response.data;
+
+                // Filter students by class
+                const classStudents = allStudents.filter(s => s.class_name === className);
+
+                if (classStudents.length === 0) {
+                    document.getElementById('studentsListContainer').innerHTML =
+                        '<p class="text-center text-gray-500 p-4">No students found in this class.</p>';
+                    return;
+                }
+
+                let html = `
+                    <div class="border-2 border-gray-300 rounded-lg p-4 bg-gray-50">
+                        <h4 class="font-bold text-lg mb-4">Students in ${className}</h4>
+                        <div class="space-y-2 max-h-96 overflow-y-auto">
+                `;
+
+                classStudents.forEach(student => {
+                    const bgClass = student.has_assignment ? 'bg-green-50 border-green-400' : 'bg-white';
+                    const checkmark = student.has_assignment ? '✅ ' : '';
+
+                    html += `
+                        <div class="flex items-center gap-2 p-3 ${bgClass} rounded border-2 hover:border-blue-500">
+                            <div class="flex-1">
+                                <p class="font-bold">${checkmark}${student.student_name}</p>
+                                <p class="text-xs text-gray-500">${student.student_reg_no}</p>
+                            </div>
+                            <div class="flex gap-2 items-center">
+                                <span class="text-xs font-bold">Amount (TSH):</span>
+                                <input type="number" step="0.01" value="${student.sales || ''}"
+                                    class="student-amount w-32 border-2 border-gray-300 rounded px-2 py-1 text-sm"
+                                    data-student-id="${student.student_id}"
+                                    data-original="${student.sales || 0}"
+                                    placeholder="0.00">
+                            </div>
+                            <div class="flex gap-2 items-center">
+                                <span class="text-xs font-bold">Deadline:</span>
+                                <input type="date" value="${student.deadline || ''}"
+                                    class="student-deadline w-36 border-2 border-gray-300 rounded px-2 py-1 text-sm"
+                                    data-student-id="${student.student_id}">
+                            </div>
+                            ${student.has_assignment ? `
+                            <button onclick="saveStudentEdit(${particularId}, ${student.student_id})"
+                                class="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1 rounded text-sm font-bold">
+                                ✏️ Update
+                            </button>
+                            ` : `
+                            <button onclick="assignSingleStudent(${particularId}, ${student.student_id})"
+                                class="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-sm font-bold">
+                                ➕ Assign
+                            </button>
+                            `}
+                        </div>
+                    `;
+                });
+
+                html += '</div></div>';
+                document.getElementById('studentsListContainer').innerHTML = html;
+
+            } catch (error) {
+                console.error('Error loading students:', error);
+                document.getElementById('studentsListContainer').innerHTML =
+                    '<p class="text-center text-red-500 p-4">❌ Error loading students</p>';
+            }
+        }
+
+        async function assignSingleStudent(particularId, studentId) {
+            // Check if academic year is selected
+            if (!selectedAcademicYearId) {
+                alert('⚠️ Please select an Academic Year first');
+                return;
+            }
+
+            const amountInput = document.querySelector(`.student-amount[data-student-id="${studentId}"]`);
+            const deadlineInput = document.querySelector(`.student-deadline[data-student-id="${studentId}"]`);
+
+            const amount = parseFloat(amountInput.value);
+            const deadline = deadlineInput.value;
+
+            if (!amount || amount <= 0) {
+                alert('⚠️ Please enter a valid amount');
+                return;
+            }
+
+            try {
+                await axios.post(`${API_BASE}/particulars/${particularId}/assignments`, {
+                    student_id: studentId,
+                    sales: amount,
+                    deadline: deadline || null,
+                    academic_year_id: selectedAcademicYearId
+                });
+
+                alert('✅ Student assigned successfully!');
+                // Reload the class view
+                const className = amountInput.closest('[class*="border-2"]').parentElement.querySelector('h4').textContent.replace('Students in ', '');
+                showAssignStudentsForm(particularId, currentParticularForExisting.name);
+            } catch (error) {
+                console.error('Error assigning student:', error);
+                alert('❌ Error: ' + (error.response?.data?.message || error.message));
+            }
+        }
+
+        async function saveStudentEdit(particularId, studentId) {
+            const amountInput = document.querySelector(`.student-amount[data-student-id="${studentId}"]`);
+            const deadlineInput = document.querySelector(`.student-deadline[data-student-id="${studentId}"]`);
+
+            const newAmount = parseFloat(amountInput.value);
+            const originalAmount = parseFloat(amountInput.getAttribute('data-original'));
+            const deadline = deadlineInput.value;
+
+            if (!newAmount || newAmount <= 0) {
+                alert('⚠️ Please enter a valid amount');
+                return;
+            }
+
+            // Check if anything actually changed
+            const amountChanged = Math.abs(newAmount - originalAmount) > 0.001;
+
+            if (!amountChanged && !deadline) {
+                alert('⚠️ No changes detected');
+                return;
+            }
+
+            try {
+                await axios.put(`${API_BASE}/particulars/${particularId}/assignments/${studentId}`, {
+                    sales: newAmount,
+                    deadline: deadline || null,
+                    academic_year_id: selectedAcademicYearId
+                });
+
+                if (amountChanged) {
+                    alert(`✅ Updated successfully! Ledger entry created for amount change (${originalAmount} → ${newAmount})`);
+                } else {
+                    alert('✅ Deadline updated successfully!');
+                }
+
+                // Reload the class view
+                showAssignStudentsForm(particularId, currentParticularForExisting.name);
+            } catch (error) {
+                console.error('Error updating assignment:', error);
+                alert('❌ Error: ' + (error.response?.data?.message || error.message));
+            }
+        }
+
+        function showNewAssignmentForm(particularId, studentId, studentName) {
+            const formHtml = `
+                <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div class="bg-white rounded-lg p-8 max-w-md w-full shadow-2xl m-4">
+                        <h3 class="text-xl font-bold mb-4 text-green-600">➕ Assign to: ${studentName}</h3>
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block font-bold mb-2">Amount (TSH):</label>
+                                <input type="number" id="newAssignAmount" step="0.01" class="w-full border-2 border-gray-300 rounded px-3 py-2" placeholder="0.00" required>
+                            </div>
+                            <div>
+                                <label class="block font-bold mb-2">Deadline (Optional):</label>
+                                <input type="date" id="newAssignDeadline" class="w-full border-2 border-gray-300 rounded px-3 py-2">
+                            </div>
+                            <div class="flex gap-3 pt-4 border-t-2">
+                                <button onclick="closeNewAssignmentForm()" class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 px-4 py-2 rounded-lg font-bold">Cancel</button>
+                                <button onclick="saveNewAssignment(${particularId}, ${studentId})" class="flex-1 bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg font-bold">✅ Assign</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.insertAdjacentHTML('beforeend', formHtml);
+        }
+
+        function closeNewAssignmentForm() {
+            document.querySelector('.fixed.inset-0').remove();
+        }
+
+        async function saveNewAssignment(particularId, studentId) {
+            // Check if academic year is selected
+            if (!selectedAcademicYearId) {
+                alert('⚠️ Please select an Academic Year first');
+                return;
+            }
+
+            const amount = document.getElementById('newAssignAmount').value;
+            const deadline = document.getElementById('newAssignDeadline').value;
+
+            if (!amount || amount <= 0) {
+                alert('⚠️ Please enter a valid amount');
+                return;
+            }
+
+            try {
+                await axios.post(`${API_BASE}/particulars/${particularId}/assignments`, {
+                    student_id: studentId,
+                    sales: parseFloat(amount),
+                    deadline: deadline || null,
+                    academic_year_id: selectedAcademicYearId
+                });
+
+                alert('✅ Student assigned successfully!');
+                closeNewAssignmentForm();
+                showAssignStudentsForm(particularId, currentParticularForExisting?.name || 'Particular');
+            } catch (error) {
+                console.error('Error assigning student:', error);
+                alert('❌ Error: ' + (error.response?.data?.message || error.message));
+            }
+        }
+
+        function showEditAssignmentForm(particularId, studentId, studentName, currentAmount, currentDeadline) {
+            const formHtml = `
+                <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div class="bg-white rounded-lg p-8 max-w-md w-full shadow-2xl m-4">
+                        <h3 class="text-xl font-bold mb-4 text-yellow-600">✏️ Edit Assignment: ${studentName}</h3>
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block font-bold mb-2">Current Amount: TSH ${currentAmount.toLocaleString()}</label>
+                                <label class="block font-bold mb-2">New Amount (TSH):</label>
+                                <input type="number" id="editAssignAmount" value="${currentAmount}" step="0.01" class="w-full border-2 border-gray-300 rounded px-3 py-2" required>
+                                <p class="text-xs text-gray-600 mt-1">Note: If amount changes, a ledger entry will be created automatically</p>
+                            </div>
+                            <div>
+                                <label class="block font-bold mb-2">Deadline:</label>
+                                <input type="date" id="editAssignDeadline" value="${currentDeadline}" class="w-full border-2 border-gray-300 rounded px-3 py-2">
+                            </div>
+                            <div class="flex gap-3 pt-4 border-t-2">
+                                <button onclick="closeEditAssignmentForm()" class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 px-4 py-2 rounded-lg font-bold">Cancel</button>
+                                <button onclick="saveEditAssignment(${particularId}, ${studentId})" class="flex-1 bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg font-bold">💾 Save</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.insertAdjacentHTML('beforeend', formHtml);
+        }
+
+        function closeEditAssignmentForm() {
+            document.querySelector('.fixed.inset-0:last-of-type').remove();
+        }
+
+        async function saveEditAssignment(particularId, studentId) {
+            const amount = document.getElementById('editAssignAmount').value;
+            const deadline = document.getElementById('editAssignDeadline').value;
+
+            if (!amount || amount <= 0) {
+                alert('⚠️ Please enter a valid amount');
+                return;
+            }
+
+            try {
+                await axios.put(`${API_BASE}/particulars/${particularId}/assignments/${studentId}`, {
+                    sales: parseFloat(amount),
+                    deadline: deadline || null
+                });
+
+                alert('✅ Assignment updated successfully! Ledger entry created for amount change.');
+                closeEditAssignmentForm();
+                showAssignStudentsForm(particularId, currentParticularForExisting?.name || 'Particular');
+            } catch (error) {
+                console.error('Error updating assignment:', error);
+                alert('❌ Error: ' + (error.response?.data?.message || error.message));
+            }
+        }
+
+        async function deleteAssignment(particularId, studentId, studentName) {
+            if (!confirm(`⚠️ Are you sure you want to remove this particular from ${studentName}?`)) {
+                return;
+            }
+
+            try {
+                await axios.delete(`${API_BASE}/particulars/${particularId}/assignments/${studentId}`);
+                alert('✅ Assignment deleted successfully!');
+                showAssignStudentsForm(particularId, currentParticularForExisting?.name || 'Particular');
+            } catch (error) {
+                console.error('Error deleting assignment:', error);
+                alert('❌ Error: ' + (error.response?.data?.message || error.message));
+            }
         }
 
         async function loadStudentsByClass(particularId, classId, className) {

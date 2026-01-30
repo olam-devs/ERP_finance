@@ -65,6 +65,28 @@
             font-weight: bold;
             color: #0275d8;
         }
+        .month-start-row {
+            background-color: #e3f2fd;
+            border: 2px solid #2196f3;
+            font-weight: bold;
+        }
+        .month-end-row {
+            background-color: #fff3e0;
+            border: 2px solid #ff9800;
+            font-weight: bold;
+        }
+        .month-end-balance-row {
+            background-color: #ffe0b2;
+            border: 2px solid #f57c00;
+            font-weight: bold;
+            font-size: 11px;
+        }
+        .page-balance-row {
+            background-color: #e1bee7;
+            border: 2px solid #9c27b0;
+            font-weight: bold;
+            font-size: 11px;
+        }
         .footer {
             margin-top: 30px;
             padding-top: 10px;
@@ -87,7 +109,7 @@
 
     <div class="particular-info">
         <strong>Particular:</strong> {{ $particular->name }}
-        @if($particular->amount)
+        @if(isset($particular->amount) && $particular->amount)
         | <strong>Standard Amount:</strong> TSh {{ number_format($particular->amount, 2) }}
         @endif
         <br>
@@ -101,39 +123,87 @@
     <table class="ledger-table">
         <thead>
             <tr>
-                <th style="width: 8%;">Date</th>
-                <th style="width: 18%;">Student</th>
-                <th style="width: 10%;">Reg No</th>
-                <th style="width: 8%;">Class</th>
+                <th style="width: 10%;">Date</th>
+                <th style="width: 20%;">Student</th>
+                <th style="width: 10%;">Class</th>
                 <th style="width: 12%;">Book</th>
-                <th style="width: 8%;">Type</th>
-                <th style="width: 10%;">DR (TSh)</th>
-                <th style="width: 10%;">CR (TSh)</th>
-                <th style="width: 16%;">Notes</th>
+                <th style="width: 10%;">Type</th>
+                <th style="width: 12%;">DR (TSh)</th>
+                <th style="width: 12%;">CR (TSh)</th>
+                <th style="width: 14%;">Notes</th>
             </tr>
         </thead>
         <tbody>
             @forelse($vouchers as $voucher)
-            <tr>
-                <td>{{ $voucher->date->format('d/m/Y') }}</td>
-                <td>{{ $voucher->student ? $voucher->student->name : 'N/A' }}</td>
-                <td>{{ $voucher->student ? $voucher->student->student_reg_no : 'N/A' }}</td>
-                <td>{{ $voucher->student ? ($voucher->student->schoolClass->name ?? 'N/A') : 'N/A' }}</td>
-                <td>{{ $voucher->book ? $voucher->book->name : 'N/A' }}</td>
-                <td>{{ $voucher->voucher_type }}</td>
-                <td class="amount-debit">{{ number_format($voucher->debit, 2) }}</td>
-                <td class="amount-credit">{{ number_format($voucher->credit, 2) }}</td>
-                <td style="font-size: 8px;">{{ $voucher->notes ?? '' }}</td>
-            </tr>
+                @if(isset($voucher->is_page_opening) && $voucher->is_page_opening)
+                    <tr style="background-color: #e1bee7; border: 2px solid #9c27b0;">
+                        <td colspan="5" style="padding: 8px; font-size: 10px; font-weight: bold; color: #4a148c;">
+                            Page Opening Balance
+                        </td>
+                        <td colspan="3" style="text-align: right; padding: 8px; font-size: 10px; font-weight: bold; color: #4a148c;">
+                            TSh {{ number_format($voucher->opening_balance, 2) }}
+                        </td>
+                    </tr>
+                @elseif(isset($voucher->is_page_closing) && $voucher->is_page_closing)
+                    <tr style="background-color: #e1bee7; border: 2px solid #9c27b0;">
+                        <td colspan="5" style="text-align: right; padding: 8px; font-size: 10px; font-weight: bold; color: #4a148c;">
+                            Page Closing Balance:
+                        </td>
+                        <td colspan="3" style="text-align: right; padding: 8px; font-size: 10px; font-weight: bold; color: #4a148c;">
+                            TSh {{ number_format($voucher->closing_balance, 2) }}
+                        </td>
+                    </tr>
+                @elseif(isset($voucher->is_month_start) && $voucher->is_month_start)
+                    <tr class="month-start-row">
+                        <td colspan="5" style="padding: 8px; font-size: 10px;">
+                            <strong>Month Start - {{ $voucher->month }}</strong>
+                        </td>
+                        <td colspan="3" style="text-align: right; padding: 8px; font-size: 10px;">
+                            Opening Balance: TSh {{ number_format($voucher->opening_balance, 2) }}
+                        </td>
+                    </tr>
+                @elseif(isset($voucher->is_month_end) && $voucher->is_month_end)
+                    <tr class="month-end-row">
+                        <td colspan="5" style="padding: 6px; font-size: 10px;">
+                            <strong>Month End - {{ $voucher->month }}</strong>
+                        </td>
+                        <td style="text-align: right; padding: 6px; font-size: 9px;">
+                            {{ number_format($voucher->monthly_debit, 2) }}
+                        </td>
+                        <td style="text-align: right; padding: 6px; font-size: 9px;">
+                            {{ number_format($voucher->monthly_credit, 2) }}
+                        </td>
+                        <td></td>
+                    </tr>
+                    <tr class="month-end-balance-row">
+                        <td colspan="5" style="text-align: right; padding: 8px;">
+                            <strong>CLOSING BALANCE:</strong>
+                        </td>
+                        <td colspan="3" style="text-align: right; padding: 8px;">
+                            <strong>TSh {{ number_format($voucher->closing_balance, 2) }}</strong>
+                        </td>
+                    </tr>
+                @else
+                    <tr>
+                        <td>{{ \Carbon\Carbon::parse($voucher->date)->format('d/m/Y') }}</td>
+                        <td>{{ $voucher->student ? $voucher->student->name : 'N/A' }}</td>
+                        <td>{{ $voucher->student && $voucher->student->schoolClass ? $voucher->student->schoolClass->name : 'N/A' }}</td>
+                        <td>{{ $voucher->book ? $voucher->book->name : 'N/A' }}</td>
+                        <td>{{ $voucher->voucher_type }}</td>
+                        <td class="amount-debit">{{ number_format($voucher->display_debit ?? 0, 2) }}</td>
+                        <td class="amount-credit">{{ number_format($voucher->display_credit ?? 0, 2) }}</td>
+                        <td style="font-size: 8px;">{{ $voucher->notes ?? '' }}</td>
+                    </tr>
+                @endif
             @empty
             <tr>
-                <td colspan="9" style="text-align: center; padding: 20px;">No transactions found</td>
+                <td colspan="8" style="text-align: center; padding: 20px;">No transactions found</td>
             </tr>
             @endforelse
         </tbody>
         <tfoot>
             <tr style="background-color: #f9f9f9; font-weight: bold;">
-                <td colspan="6" style="text-align: right; padding-right: 10px;"><strong>TOTALS:</strong></td>
+                <td colspan="5" style="text-align: right; padding-right: 10px;"><strong>TOTALS:</strong></td>
                 <td class="amount-debit"><strong>{{ number_format($totalDebit, 2) }}</strong></td>
                 <td class="amount-credit"><strong>{{ number_format($totalCredit, 2) }}</strong></td>
                 <td></td>

@@ -112,7 +112,11 @@
         }
 
         function showAllStudentsInvoices() {
-            window.open('/accountant/invoices/all-students/pdf', '_blank');
+            const url = '/accountant/invoices/all-students/pdf';
+            const newWindow = window.open(url, '_blank');
+            if (!newWindow || newWindow.closed || typeof newWindow.closed == 'undefined') {
+                alert('Pop-up blocked! Please allow pop-ups for this site to download invoices.');
+            }
         }
 
         function showClassSelection() {
@@ -161,13 +165,19 @@
                 return;
             }
 
+            let url;
             if (selectedClasses.length === allClasses.length) {
-                window.open('/accountant/invoices/all-students/pdf', '_blank');
+                url = '/accountant/invoices/all-students/pdf';
             } else if (selectedClasses.length === 1) {
-                window.open(`/accountant/invoices/all-students/pdf?class=${encodeURIComponent(selectedClasses[0])}`, '_blank');
+                url = `/accountant/invoices/all-students/pdf?class=${encodeURIComponent(selectedClasses[0])}`;
             } else {
                 const classesParam = selectedClasses.map(c => `classes[]=${encodeURIComponent(c)}`).join('&');
-                window.open(`/accountant/invoices/all-students/pdf?${classesParam}`, '_blank');
+                url = `/accountant/invoices/all-students/pdf?${classesParam}`;
+            }
+
+            const newWindow = window.open(url, '_blank');
+            if (!newWindow || newWindow.closed || typeof newWindow.closed == 'undefined') {
+                alert('Pop-up blocked! Please allow pop-ups for this site to download invoices.');
             }
         }
 
@@ -208,7 +218,11 @@
                 alert('⚠️ Please search and select a student first');
                 return;
             }
-            window.open(`/accountant/invoices/student/${selectedStudentId}/pdf`, '_blank');
+            const url = `/accountant/invoices/student/${selectedStudentId}/pdf`;
+            const newWindow = window.open(url, '_blank');
+            if (!newWindow || newWindow.closed || typeof newWindow.closed == 'undefined') {
+                alert('Pop-up blocked! Please allow pop-ups for this site to download invoices.');
+            }
         }
 
         // Load data on page load

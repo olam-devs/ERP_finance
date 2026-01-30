@@ -124,6 +124,19 @@
 
                     <div id="bankAccountsTable"></div>
                 </div>
+
+                <!-- Academic Years Section -->
+                <div class="mt-8 bg-yellow-50 rounded-lg p-6 border-2 border-yellow-300">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-xl font-bold text-gray-800">📅 Academic Years</h3>
+                        <button onclick="showAddAcademicYearModal()" class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded transition">
+                            + Add Academic Year
+                        </button>
+                    </div>
+                    <p class="text-sm text-gray-600 mb-4">Manage academic years for fee assignments. The current year will be pre-selected when assigning fees.</p>
+
+                    <div id="academicYearsTable"></div>
+                </div>
             </div>
         </div>
     </div>
@@ -158,12 +171,54 @@
         </div>
     </div>
 
+    <!-- Add/Edit Academic Year Modal -->
+    <div id="academicYearModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-lg p-6 max-w-md w-full">
+            <h3 id="academicYearModalTitle" class="text-xl font-bold mb-4">Add Academic Year</h3>
+            <form id="academicYearForm" onsubmit="saveAcademicYear(event)">
+                <input type="hidden" id="academic_year_id">
+                <div class="mb-4">
+                    <label class="block font-bold mb-2">Year Name <span class="text-red-500">*</span></label>
+                    <input type="text" id="year_name" required
+                           placeholder="e.g., 2024/2025"
+                           class="w-full border-2 border-gray-300 rounded px-4 py-2 focus:border-yellow-500 focus:outline-none">
+                </div>
+                <div class="mb-4">
+                    <label class="block font-bold mb-2">Start Date <span class="text-red-500">*</span></label>
+                    <input type="date" id="start_date" required
+                           class="w-full border-2 border-gray-300 rounded px-4 py-2 focus:border-yellow-500 focus:outline-none">
+                </div>
+                <div class="mb-4">
+                    <label class="block font-bold mb-2">End Date <span class="text-red-500">*</span></label>
+                    <input type="date" id="end_date" required
+                           class="w-full border-2 border-gray-300 rounded px-4 py-2 focus:border-yellow-500 focus:outline-none">
+                </div>
+                <div class="mb-4">
+                    <label class="flex items-center gap-2">
+                        <input type="checkbox" id="is_current" class="w-5 h-5 rounded border-gray-300 text-yellow-500 focus:ring-yellow-500">
+                        <span class="font-bold">Set as Current Academic Year</span>
+                    </label>
+                    <p class="text-xs text-gray-500 mt-1">This will be the default year when assigning fees</p>
+                </div>
+                <div class="flex gap-3">
+                    <button type="submit" class="flex-1 bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded font-bold transition">
+                        💾 Save
+                    </button>
+                    <button type="button" onclick="closeAcademicYearModal()" class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 px-4 py-2 rounded font-bold transition">
+                        ✖ Cancel
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <script>
         axios.defaults.headers.common['X-CSRF-TOKEN'] = document.querySelector('meta[name="csrf-token"]').content;
 
         document.addEventListener('DOMContentLoaded', function() {
             loadBankAccounts();
+            loadAcademicYears();
         });
 
         async function loadBankAccounts() {
@@ -277,6 +332,153 @@
                 alert('✅ Bank account deleted successfully!');
             } catch (error) {
                 alert('❌ Error deleting bank account: ' + (error.response?.data?.message || error.message));
+            }
+        }
+
+        // Academic Year Functions
+        async function loadAcademicYears() {
+            try {
+                const response = await axios.get('/api/academic-years');
+                const years = response.data;
+
+                let html = '';
+                if (years.length === 0) {
+                    html = '<p class="text-gray-500 text-center py-4">No academic years added yet. Click "Add Academic Year" to add one.</p>';
+                } else {
+                    html = `
+                        <table class="w-full border-2 border-yellow-300 rounded-lg">
+                            <thead class="bg-yellow-100">
+                                <tr>
+                                    <th class="p-3 text-left">#</th>
+                                    <th class="p-3 text-left">Year Name</th>
+                                    <th class="p-3 text-left">Period</th>
+                                    <th class="p-3 text-center">Status</th>
+                                    <th class="p-3 text-center">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                    `;
+
+                    years.forEach((year, index) => {
+                        const startDate = new Date(year.start_date).toLocaleDateString();
+                        const endDate = new Date(year.end_date).toLocaleDateString();
+                        html += `
+                            <tr class="border-t hover:bg-yellow-50">
+                                <td class="p-3 font-bold">${index + 1}</td>
+                                <td class="p-3 font-semibold">${year.name}</td>
+                                <td class="p-3 text-sm">${startDate} - ${endDate}</td>
+                                <td class="p-3 text-center">
+                                    ${year.is_current ?
+                                        '<span class="bg-green-500 text-white px-3 py-1 rounded-full text-xs font-bold">Current</span>' :
+                                        '<span class="bg-gray-300 text-gray-700 px-3 py-1 rounded-full text-xs">Inactive</span>'
+                                    }
+                                </td>
+                                <td class="p-3 text-center">
+                                    ${!year.is_current ? `
+                                        <button onclick="setCurrentAcademicYear(${year.id})"
+                                                class="bg-green-500 hover:bg-green-600 text-white px-2 py-1 rounded text-xs mr-1 transition">
+                                            Set Current
+                                        </button>
+                                    ` : ''}
+                                    <button onclick='editAcademicYear(${JSON.stringify(year)})'
+                                            class="bg-yellow-500 hover:bg-yellow-600 text-white px-2 py-1 rounded text-xs mr-1 transition">
+                                        Edit
+                                    </button>
+                                    <button onclick="deleteAcademicYear(${year.id})"
+                                            class="bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded text-xs transition">
+                                        Delete
+                                    </button>
+                                </td>
+                            </tr>
+                        `;
+                    });
+
+                    html += `
+                            </tbody>
+                        </table>
+                    `;
+                }
+
+                document.getElementById('academicYearsTable').innerHTML = html;
+            } catch (error) {
+                console.error('Error loading academic years:', error);
+                document.getElementById('academicYearsTable').innerHTML = '<p class="text-red-500 text-center py-4">Error loading academic years</p>';
+            }
+        }
+
+        function showAddAcademicYearModal() {
+            document.getElementById('academicYearModalTitle').textContent = 'Add Academic Year';
+            document.getElementById('academicYearForm').reset();
+            document.getElementById('academic_year_id').value = '';
+            document.getElementById('academicYearModal').classList.remove('hidden');
+        }
+
+        function editAcademicYear(year) {
+            document.getElementById('academicYearModalTitle').textContent = 'Edit Academic Year';
+            document.getElementById('academic_year_id').value = year.id;
+            document.getElementById('year_name').value = year.name;
+            document.getElementById('start_date').value = year.start_date.split('T')[0];
+            document.getElementById('end_date').value = year.end_date.split('T')[0];
+            document.getElementById('is_current').checked = year.is_current;
+            document.getElementById('academicYearModal').classList.remove('hidden');
+        }
+
+        function closeAcademicYearModal() {
+            document.getElementById('academicYearModal').classList.add('hidden');
+            document.getElementById('academicYearForm').reset();
+        }
+
+        async function saveAcademicYear(event) {
+            event.preventDefault();
+
+            const yearId = document.getElementById('academic_year_id').value;
+            const data = {
+                name: document.getElementById('year_name').value,
+                start_date: document.getElementById('start_date').value,
+                end_date: document.getElementById('end_date').value,
+                is_current: document.getElementById('is_current').checked
+            };
+
+            try {
+                if (yearId) {
+                    await axios.put(`/api/academic-years/${yearId}`, data);
+                } else {
+                    await axios.post('/api/academic-years', data);
+                }
+
+                closeAcademicYearModal();
+                loadAcademicYears();
+                alert('✅ Academic year saved successfully!');
+            } catch (error) {
+                alert('❌ Error saving academic year: ' + (error.response?.data?.message || error.message));
+            }
+        }
+
+        async function setCurrentAcademicYear(id) {
+            if (!confirm('Are you sure you want to set this as the current academic year?')) {
+                return;
+            }
+
+            try {
+                await axios.post(`/api/academic-years/${id}/set-current`);
+                loadAcademicYears();
+                alert('✅ Academic year set as current!');
+            } catch (error) {
+                alert('❌ Error: ' + (error.response?.data?.message || error.message));
+            }
+        }
+
+        async function deleteAcademicYear(id) {
+            if (!confirm('Are you sure you want to delete this academic year? This cannot be done if there are fee assignments for this year.')) {
+                return;
+            }
+
+            try {
+                await axios.delete(`/api/academic-years/${id}`);
+                loadAcademicYears();
+                alert('✅ Academic year deleted successfully!');
+            } catch (error) {
+                alert('❌ Error deleting academic year: ' + (error.response?.data?.error || error.response?.data?.message || error.message));
             }
         }
     </script>

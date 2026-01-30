@@ -1,0 +1,296 @@
+<?php
+
+namespace App\Services;
+
+use App\Models\Central\School;
+use App\Models\Central\SchoolAccountant;
+use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Log;
+
+class SchoolProvisioningService
+{
+    protected TenantDatabaseManager $tenantManager;
+    protected ActivityLogger $activityLogger;
+
+    public function __construct(TenantDatabaseManager $tenantManager, ActivityLogger $activityLogger)
+    {
+        $this->tenantManager = $tenantManager;
+        $this->activityLogger = $activityLogger;
+    }
+
+    /**
+     * Provision a new school with database and default data.
+     *
+     * @param array $data
+     * @return School
+     * @throws \Exception
+     */
+    public function provisionSchool(array $data): School
+    {
+        return DB::connection('central')->transaction(function () use ($data) {
+            // Check if using existing database
+            $useExistingDatabase = !empty($data['use_existing_database']);
+            $existingDatabaseName = $data['existing_database_name'] ?? null;
+
+            // Determine database name
+            $databaseName = $useExistingDatabase && $existingDatabaseName
+                ? $existingDatabaseName
+                : $this->generateDatabaseName($data['name']);
+
+            // 1. Create school record in central database
+            $school = School::create([
+                'name' => $data['name'],
+                'slug' => $data['slug'] ?? Str::slug($data['name']),
+                'database_name' => $databaseName,
+                'db_host' => $data['db_host'] ?? null,
+                'db_port' => $data['db_port'] ?? null,
+                'db_username' => $data['db_username'] ?? null,
+                'db_password' => $data['db_password'] ?? null,
+                'domain' => $data['domain'] ?? null,
+                'logo' => $data['logo'] ?? null,
+                'contact_email' => $data['contact_email'],
+                'contact_phone' => $data['contact_phone'] ?? null,
+                'address' => $data['address'] ?? null,
+                'is_active' => true,
+                'subscription_status' => $data['subscription_status'] ?? 'active',
+                'subscription_expires_at' => $data['subscription_expires_at'] ?? null,
+                'max_students' => $data['max_students'] ?? 1000,
+            ]);
+
+            try {
+                if ($useExistingDatabase) {
+                    // Verify the existing database is accessible
+                    $this->verifyExistingDatabase($school);
+                } else {
+                    // 2. Create the database
+                    if (!$this->tenantManager->createDatabase($school->database_name)) {
+                        throw new \Exception("Failed to create database for school: {$school->name}");
+                    }
+
+                    // 3. Run migrations on the new database
+                    $this->runTenantMigrations($school);
+
+                    // 4. Seed default data
+                    $this->seedDefaultData($school);
+                }
+
+                // 5. Create default accountant user
+                $accountant = $this->createDefaultAccountant($school, $data);
+
+                // 6. Log the activity
+                $this->activityLogger->logSchoolCreation($school);
+
+                return $school;
+            } catch (\Exception $e) {
+                // Rollback: delete database if something fails (only if we created it)
+                if (!$useExistingDatabase) {
+                    $this->tenantManager->dropDatabase($school->database_name);
+                }
+                $school->delete();
+
+                throw $e;
+            }
+        });
+    }
+
+    /**
+     * Verify that an existing database is accessible and has required tables.
+     */
+    protected function verifyExistingDatabase(School $school): void
+    {
+        $this->tenantManager->switchToSchool($school);
+
+        try {
+            // Check if basic required tables exist
+            $requiredTables = ['users', 'students', 'books', 'vouchers', 'school_settings'];
+            foreach ($requiredTables as $table) {
+                if (!DB::connection('tenant')->getSchemaBuilder()->hasTable($table)) {
+                    throw new \Exception("Required table '{$table}' not found in database '{$school->database_name}'");
+                }
+            }
+        } finally {
+            $this->tenantManager->switchToCentral();
+        }
+    }
+
+    /**
+     * Generate a unique database name for the school.
+     *
+     * @param string $schoolName
+     * @return string
+     */
+    protected function generateDatabaseName(string $schoolName): string
+    {
+        // Get the next ID (count + 1)
+        $count = School::count();
+        $nextId = $count + 1;
+        
+        return 'darasa_school_' . str_pad($nextId, 3, '0', STR_PAD_LEFT);
+    }
+
+    protected function runTenantMigrations(School $school): void
+    {
+        // Switch to tenant database
+        if ($school->db_host) {
+            // Configure custom connection dynamically
+            config([
+                'database.connections.tenant.host' => $school->db_host,
+                'database.connections.tenant.port' => $school->db_port,
+                'database.connections.tenant.username' => $school->db_username,
+                'database.connections.tenant.password' => $school->db_password,
+            ]);
+        }
+
+        $this->tenantManager->switchToSchool($school);
+
+        try {
+            // Create migrations table if it doesn't exist
+            if (!DB::connection('tenant')->getSchemaBuilder()->hasTable('migrations')) {
+                DB::connection('tenant')->getSchemaBuilder()->create('migrations', function ($table) {
+                    $table->id();
+                    $table->string('migration');
+                    $table->integer('batch');
+                });
+            }
+
+            // Run migrations with the tenant database path
+            // This will run all migrations in the migrations folder
+            $migrationsPath = database_path('migrations');
+
+            Artisan::call('migrate', [
+                '--database' => 'tenant',
+                '--path' => 'database/migrations',
+                '--force' => true,
+            ]);
+
+            Log::info("Migrations completed for school: {$school->name}", [
+                'database' => $school->database_name,
+                'output' => Artisan::output()
+            ]);
+        } catch (\Exception $e) {
+            Log::error("Migration failed for school: {$school->name}", [
+                'database' => $school->database_name,
+                'error' => $e->getMessage()
+            ]);
+            throw $e;
+        } finally {
+            // Switch back to central
+            $this->tenantManager->switchToCentral();
+        }
+    }
+
+    /**
+     * Seed default data for the school.
+     */
+    protected function seedDefaultData(School $school): void
+    {
+        // Temporarily configure connection if custom DB details exist
+        if ($school->db_host) {
+             config([
+                'database.connections.tenant.host' => $school->db_host,
+                'database.connections.tenant.port' => $school->db_port,
+                'database.connections.tenant.username' => $school->db_username,
+                'database.connections.tenant.password' => $school->db_password,
+            ]);
+        }
+
+        $this->tenantManager->executeForSchool($school, function () use ($school) {
+            // Create default cash book
+            DB::table('books')->insert([
+                'name' => 'Cash Book',
+                'type' => 'cash',
+                'description' => 'Default cash book for the school',
+                'is_active' => true,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+            // Create school settings
+            DB::table('school_settings')->insert([
+                'school_name' => $school->name,
+                'email' => $school->contact_email,
+                'phone' => $school->contact_phone,
+                'address' => $school->address,
+                'logo' => $school->logo,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+            
+            // Create default classes
+            $classes = ['Form One', 'Form Two', 'Form Three', 'Form Four'];
+            foreach ($classes as $className) {
+                DB::table('school_classes')->insert([
+                    'name' => $className,
+                    'description' => "Default {$className} class",
+                    'is_active' => true,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            }
+        });
+    }
+
+    /**
+     * Create the default accountant user for the school.
+     *
+     * @param School $school
+     * @param array $data
+     * @return SchoolAccountant
+     */
+    protected function createDefaultAccountant(School $school, array $data): SchoolAccountant
+    {
+        $password = $data['accountant_password'] ?? Str::random(12);
+
+        $accountant = SchoolAccountant::create([
+            'school_id' => $school->id,
+            'name' => $data['accountant_name'] ?? 'School Accountant',
+            'email' => $data['accountant_email'] ?? $school->contact_email,
+            'password' => Hash::make($password),
+            'is_active' => true,
+        ]);
+
+        // Also create the user in the tenant database
+        $this->tenantManager->executeForSchool($school, function () use ($accountant, $password) {
+            DB::table('users')->insert([
+                'name' => $accountant->name,
+                'email' => $accountant->email,
+                'password' => Hash::make($password),
+                'role' => 'accountant',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        });
+
+        return $accountant;
+    }
+
+    /**
+     * Deprovision (delete) a school and its database.
+     *
+     * @param School $school
+     * @return bool
+     */
+    public function deprovisionSchool(School $school): bool
+    {
+        try {
+            DB::connection('central')->transaction(function () use ($school) {
+                // Log the activity
+                $this->activityLogger->logSchoolDeletion($school);
+
+                // Drop the database
+                $this->tenantManager->dropDatabase($school->database_name);
+
+                // Delete school record
+                $school->delete();
+            });
+
+            return true;
+        } catch (\Exception $e) {
+            \Log::error("Failed to deprovision school {$school->id}: " . $e->getMessage());
+            return false;
+        }
+    }
+}

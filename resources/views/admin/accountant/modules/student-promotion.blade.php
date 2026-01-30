@@ -217,6 +217,7 @@
         }
 
         async function promoteStudents() {
+            const sourceClassId = document.getElementById('sourceClass').value;
             const destinationClassId = document.getElementById('destinationClassId').value;
             const destinationClassSelect = document.getElementById('destinationClassSelect');
             const destinationClassName = destinationClassSelect.options[destinationClassSelect.selectedIndex]?.text || 'selected class';
@@ -226,8 +227,18 @@
                 return;
             }
 
+            if (!sourceClassId) {
+                alert('Please select a source class');
+                return;
+            }
+
             if (!destinationClassId) {
                 alert('Please select a destination class');
+                return;
+            }
+
+            if (sourceClassId === destinationClassId) {
+                alert('Cannot promote students to the same class. Please select a different destination class.');
                 return;
             }
 
@@ -238,6 +249,7 @@
             try {
                 const response = await axios.post('/api/students/promote', {
                     student_ids: Array.from(selectedStudents),
+                    source_class_id: parseInt(sourceClassId),
                     destination_class_id: parseInt(destinationClassId)
                 });
 

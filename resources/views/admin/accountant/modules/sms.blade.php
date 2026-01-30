@@ -25,10 +25,24 @@
                         <h1 class="text-2xl font-bold">📱 SMS Notification System</h1>
                     </div>
                     <div class="flex gap-3 items-center">
-                        <span id="balance-display" class="bg-purple-700 px-4 py-2 rounded-lg shadow">
-                            <span class="text-sm">SMS Balance: </span>
-                            <span class="font-bold" id="sms-balance">Loading...</span>
-                        </span>
+                        <div id="balance-display" class="bg-purple-700 px-4 py-2 rounded-lg shadow flex gap-4 items-center">
+                            <div class="text-center border-r border-purple-500 pr-4">
+                                <div class="text-xs opacity-75">School</div>
+                                <div class="font-semibold text-sm" id="sms-school">-</div>
+                            </div>
+                            <div class="text-center">
+                                <div class="text-xs opacity-75">Assigned</div>
+                                <div class="font-bold" id="sms-assigned">-</div>
+                            </div>
+                            <div class="text-center">
+                                <div class="text-xs opacity-75">Used</div>
+                                <div class="font-bold" id="sms-used">-</div>
+                            </div>
+                            <div class="text-center border-l border-purple-500 pl-4">
+                                <div class="text-xs opacity-75">Remaining</div>
+                                <div class="font-bold text-lg" id="sms-remaining">-</div>
+                            </div>
+                        </div>
                         <a href="{{ route('accountant.sms-logs') }}" class="bg-indigo-500 hover:bg-indigo-600 px-4 py-2 rounded transition">
                             📋 SMS Logs
                         </a>
@@ -78,9 +92,13 @@
 
                         <!-- Search Tab -->
                         <div id="search-tab" class="tab-content hidden">
-                            <div class="mb-4">
+                            <div class="mb-4 relative">
                                 <label class="block text-sm font-medium text-gray-700 mb-2">Search Student</label>
-                                <input type="text" id="search-input" placeholder="Name or Registration Number..." class="w-full border-gray-300 rounded-lg shadow-sm focus:border-purple-500 focus:ring-purple-500 p-2 border">
+                                <input type="text" id="search-input" placeholder="Name or Registration Number..."
+                                    class="w-full border-gray-300 rounded-lg shadow-sm focus:border-purple-500 focus:ring-purple-500 p-2 border"
+                                    oninput="showSearchAutocomplete()"
+                                    onfocus="showSearchAutocomplete()">
+                                <div id="search-autocomplete" class="hidden absolute z-50 w-full mt-1 bg-white border-2 border-purple-300 rounded-lg shadow-lg max-h-64 overflow-y-auto"></div>
                             </div>
                             <button onclick="searchStudents()" class="w-full bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded transition">
                                 🔍 Search
@@ -172,16 +190,38 @@
                         <!-- Message Input -->
                         <div class="mb-4">
                             <div class="flex justify-between items-center mb-2">
-                                <label class="block text-sm font-medium text-gray-700">Message</label>
+                                <label class="block text-sm font-medium text-gray-700">Payment Reminder Message (for students with balance)</label>
                                 <button onclick="openSaveTemplateModal()" class="text-sm text-purple-600 hover:text-purple-700 font-medium">
                                     💾 Save as Template
                                 </button>
                             </div>
-                            <textarea id="message-text" rows="8" maxlength="1000" class="w-full border-gray-300 rounded-lg shadow-sm focus:border-purple-500 focus:ring-purple-500 p-3 border" placeholder="Type your message here..."></textarea>
+                            <textarea id="message-text" rows="6" maxlength="1000" class="w-full border-gray-300 rounded-lg shadow-sm focus:border-purple-500 focus:ring-purple-500 p-3 border" placeholder="Type your payment reminder message here..."></textarea>
+                            <div class="flex justify-between items-center mt-2 text-sm">
+                                <div class="flex gap-4 text-gray-600">
+                                    <span>
+                                        <span id="char-count">0</span>/<span id="max-chars">160</span> chars
+                                    </span>
+                                    <span class="font-semibold text-purple-700">
+                                        = <span id="sms-count">0</span> SMS
+                                    </span>
+                                    <span id="unicode-indicator" class="hidden text-orange-600">
+                                        (Unicode detected - 70 chars/SMS)
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Thank You Message Input -->
+                        <div class="mb-4">
+                            <div class="flex justify-between items-center mb-2">
+                                <label class="block text-sm font-medium text-green-700">✅ Thank You Message (for fully paid students) - Optional</label>
+                                <span class="text-xs text-gray-500">Leave empty to skip fully paid students</span>
+                            </div>
+                            <textarea id="thank-you-text" rows="4" maxlength="1000" class="w-full border-green-300 rounded-lg shadow-sm focus:border-green-500 focus:ring-green-500 p-3 border bg-green-50" placeholder="Dear parent of {student_name}, Thank you for completing all fee payments! We appreciate your prompt payment..."></textarea>
                             <div class="flex justify-between items-center mt-2 text-sm">
                                 <span class="text-gray-600">
-                                    <span id="char-count">0</span>/1000 characters
-                                    (<span id="sms-count">0</span> SMS)
+                                    <span id="thank-you-char-count">0</span>/1000 characters
+                                    (<span id="thank-you-sms-count">0</span> SMS)
                                 </span>
                             </div>
                         </div>
@@ -253,6 +293,9 @@
                                 <div class="grid grid-cols-1 gap-2">
                                     <button onclick="insertPlaceholder('{particulars_breakdown}')" class="bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-2 rounded text-xs transition text-left">
                                         📋 {particulars_breakdown}
+                                    </button>
+                                    <button onclick="insertPlaceholder('{academic_year_breakdown}')" class="bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-2 rounded text-xs transition text-left">
+                                        📅 {academic_year_breakdown}
                                     </button>
                                     <button onclick="insertPlaceholder('{overdue_details}')" class="bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-2 rounded text-xs transition text-left">
                                         📝 {overdue_details}
@@ -386,7 +429,8 @@
 
             try {
                 const response = await axios.get(`/api/sms/students/class/${classId}`);
-                students = response.data;
+                const data = response.data;
+                students = Array.isArray(data) ? data : (data.data || []);
                 displayStudents(students);
             } catch (error) {
                 showMessage('Error loading students: ' + (error.response?.data?.message || error.message), 'error');
@@ -405,10 +449,91 @@
                 const response = await axios.get('/api/sms/students/search', { params: { search } });
                 students = response.data;
                 displayStudents(students);
+                document.getElementById('search-autocomplete').classList.add('hidden');
             } catch (error) {
                 showMessage('Error searching students: ' + (error.response?.data?.message || error.message), 'error');
             }
         }
+
+        // Show search autocomplete
+        let searchTimeout;
+        async function showSearchAutocomplete() {
+            const searchValue = document.getElementById('search-input').value.trim();
+            const resultsDiv = document.getElementById('search-autocomplete');
+
+            // Clear previous timeout
+            clearTimeout(searchTimeout);
+
+            if (searchValue.length < 2) {
+                resultsDiv.classList.add('hidden');
+                return;
+            }
+
+            // Debounce the API call
+            searchTimeout = setTimeout(async () => {
+                try {
+                    const response = await axios.get('/api/sms/students/search', { params: { search: searchValue } });
+                    const matchedStudents = response.data;
+
+                    if (matchedStudents.length === 0) {
+                        resultsDiv.innerHTML = '<div class="p-3 text-gray-500 text-center text-sm">No students found</div>';
+                        resultsDiv.classList.remove('hidden');
+                        return;
+                    }
+
+                    // Build autocomplete results
+                    let html = '';
+                    matchedStudents.slice(0, 10).forEach(student => {
+                        html += `
+                            <div onclick="selectStudentFromAutocomplete(${student.id})"
+                                 class="p-3 hover:bg-purple-100 cursor-pointer border-b border-gray-200 last:border-0">
+                                <div class="font-semibold text-gray-800 text-sm">${student.name}</div>
+                                <div class="text-xs text-gray-600">${student.student_reg_no} | ${student.school_class?.name || 'N/A'}</div>
+                                <div class="text-xs text-gray-500">📞 ${student.parent_phone_1 || 'No phone'}${student.parent_phone_2 ? ' | ' + student.parent_phone_2 : ''}</div>
+                            </div>
+                        `;
+                    });
+
+                    resultsDiv.innerHTML = html;
+                    resultsDiv.classList.remove('hidden');
+                } catch (error) {
+                    console.error('Error fetching autocomplete:', error);
+                    resultsDiv.classList.add('hidden');
+                }
+            }, 300);
+        }
+
+        // Select student from autocomplete
+        function selectStudentFromAutocomplete(studentId) {
+            document.getElementById('search-autocomplete').classList.add('hidden');
+
+            // Find the student in the matched results
+            axios.get('/api/sms/students/search', { params: { search: document.getElementById('search-input').value } })
+                .then(response => {
+                    students = response.data;
+                    displayStudents(students);
+
+                    // Auto-select the clicked student
+                    const checkbox = document.querySelector(`#students-list input[value="${studentId}"]`);
+                    if (checkbox) {
+                        checkbox.checked = true;
+                        toggleStudent(studentId);
+                    }
+                })
+                .catch(error => {
+                    showMessage('Error loading student: ' + (error.response?.data?.message || error.message), 'error');
+                });
+        }
+
+        // Close autocomplete when clicking outside
+        document.addEventListener('click', function(event) {
+            const searchInput = document.getElementById('search-input');
+            const resultsDiv = document.getElementById('search-autocomplete');
+
+            if (searchInput && resultsDiv && !searchInput.contains(event.target) && !resultsDiv.contains(event.target)) {
+                resultsDiv.classList.add('hidden');
+            }
+        });
 
         // Display students
         function displayStudents(studentList) {
@@ -463,16 +588,67 @@
             updatePreview();
         });
 
-        function updateCharCount() {
-            const text = document.getElementById('message-text').value;
-            const charCount = text.length;
-            const smsCount = calculateSmsCount(charCount);
+        document.getElementById('thank-you-text')?.addEventListener('input', function() {
+            updateThankYouCharCount();
+        });
 
-            document.getElementById('char-count').textContent = charCount;
-            document.getElementById('sms-count').textContent = smsCount;
+        // Check if text contains Unicode characters (non-ASCII)
+        function containsUnicode(text) {
+            return /[^\x00-\x7F]/.test(text);
         }
 
+        // Calculate SMS count based on content (standard vs Unicode)
+        function calculateSmsInfo(text) {
+            const isUnicode = containsUnicode(text);
+            const length = text.length;
+            const maxCharsPerSms = isUnicode ? 70 : 160;
+            const concatChars = isUnicode ? 67 : 153;
+
+            let smsCount = 0;
+            if (length === 0) {
+                smsCount = 0;
+            } else if (length <= maxCharsPerSms) {
+                smsCount = 1;
+            } else {
+                smsCount = Math.ceil(length / concatChars);
+            }
+
+            return {
+                length: length,
+                smsCount: smsCount,
+                isUnicode: isUnicode,
+                maxCharsPerSms: maxCharsPerSms
+            };
+        }
+
+        function updateCharCount() {
+            const text = document.getElementById('message-text').value;
+            const info = calculateSmsInfo(text);
+
+            document.getElementById('char-count').textContent = info.length;
+            document.getElementById('max-chars').textContent = info.maxCharsPerSms;
+            document.getElementById('sms-count').textContent = info.smsCount;
+
+            // Show/hide Unicode indicator
+            const unicodeIndicator = document.getElementById('unicode-indicator');
+            if (info.isUnicode) {
+                unicodeIndicator.classList.remove('hidden');
+            } else {
+                unicodeIndicator.classList.add('hidden');
+            }
+        }
+
+        function updateThankYouCharCount() {
+            const text = document.getElementById('thank-you-text').value;
+            const info = calculateSmsInfo(text);
+
+            document.getElementById('thank-you-char-count').textContent = info.length;
+            document.getElementById('thank-you-sms-count').textContent = info.smsCount;
+        }
+
+        // Legacy function for compatibility
         function calculateSmsCount(length) {
+            if (length === 0) return 0;
             if (length <= 160) return 1;
             if (length <= 306) return 2;
             if (length <= 459) return 3;
@@ -535,6 +711,19 @@
                 return;
             }
 
+            // Calculate estimated SMS count
+            const messageInfo = calculateSmsInfo(message);
+            const estimatedSmsCount = selectedStudents.length * messageInfo.smsCount;
+
+            // Get current remaining credits
+            const currentRemaining = parseInt(document.getElementById('sms-remaining').textContent.replace(/,/g, '')) || 0;
+
+            if (currentRemaining < estimatedSmsCount) {
+                showMessage(`Insufficient SMS credits. Estimated need: ${estimatedSmsCount}, Available: ${currentRemaining}. Please contact administrator.`, 'error');
+                return;
+            }
+
+            const thankYouMessage = document.getElementById('thank-you-text').value.trim();
             const phoneNumber = document.querySelector('input[name="phone_number"]:checked').value;
 
             const btn = document.getElementById('send-btn');
@@ -542,32 +731,86 @@
             btn.innerHTML = '⏳ Sending...';
 
             try {
-                const response = await axios.post('/sms/send', {
+                const payload = {
                     student_ids: selectedStudents,
                     message: message,
                     phone_number: phoneNumber
-                });
+                };
 
-                showMessage(`✅ ${response.data.message}`, 'success');
+                // Add thank you message if provided
+                if (thankYouMessage) {
+                    payload.thank_you_message = thankYouMessage;
+                }
+
+                const response = await axios.post('/sms/send', payload);
+
+                let successMsg = `✅ ${response.data.message}`;
+                if (response.data.sms_credits) {
+                    successMsg += ` (${response.data.sms_credits.used} SMS used, ${response.data.sms_credits.remaining} remaining)`;
+                }
+                showMessage(successMsg, 'success');
                 clearForm();
                 loadSmsBalance();
             } catch (error) {
-                showMessage('❌ ' + (error.response?.data?.message || error.message), 'error');
+                const errorMsg = error.response?.data?.message || error.message;
+                if (error.response?.status === 403) {
+                    showMessage('❌ ' + errorMsg + ' Please contact your administrator to add more SMS credits.', 'error');
+                } else {
+                    showMessage('❌ ' + errorMsg, 'error');
+                }
+                loadSmsBalance(); // Refresh credits display
             } finally {
                 btn.disabled = false;
                 btn.innerHTML = '📤 Send SMS';
             }
         }
 
-        // Load SMS balance
+        // Load SMS credits for school
         async function loadSmsBalance() {
             try {
-                const response = await axios.get('/sms/balance');
-                const balance = response.data.display || response.data.sms_balance || 'N/A';
-                document.getElementById('sms-balance').textContent = balance;
+                const response = await axios.get('/api/sms/credits');
+                const data = response.data;
+
+                document.getElementById('sms-assigned').textContent = formatNumber(data.assigned || 0);
+                document.getElementById('sms-used').textContent = formatNumber(data.used || 0);
+                document.getElementById('sms-remaining').textContent = formatNumber(data.remaining || 0);
+                document.getElementById('sms-school').textContent = data.school_name || (data.message ? 'Not linked' : 'Unknown');
+
+                // Log debug info to console for troubleshooting
+                if (data.debug) {
+                    console.log('SMS Credits Debug:', data.debug);
+                }
+
+                // Update display color based on remaining credits
+                const balanceDisplay = document.getElementById('balance-display');
+                if (data.error || data.message) {
+                    // Show info message
+                    balanceDisplay.classList.remove('bg-purple-700', 'bg-red-600');
+                    balanceDisplay.classList.add('bg-gray-600');
+                    if (data.message) {
+                        document.getElementById('sms-remaining').textContent = '0';
+                    }
+                } else if (data.remaining <= 0) {
+                    balanceDisplay.classList.remove('bg-purple-700', 'bg-gray-600');
+                    balanceDisplay.classList.add('bg-red-600');
+                } else if (data.remaining < 50) {
+                    balanceDisplay.classList.remove('bg-purple-700', 'bg-gray-600');
+                    balanceDisplay.classList.add('bg-orange-600');
+                } else {
+                    balanceDisplay.classList.remove('bg-red-600', 'bg-orange-600', 'bg-gray-600');
+                    balanceDisplay.classList.add('bg-purple-700');
+                }
             } catch (error) {
-                document.getElementById('sms-balance').textContent = 'Error';
+                console.error('Error loading SMS credits:', error);
+                document.getElementById('sms-assigned').textContent = '0';
+                document.getElementById('sms-used').textContent = '0';
+                document.getElementById('sms-remaining').textContent = '0';
+                document.getElementById('sms-school').textContent = 'Error';
             }
+        }
+
+        function formatNumber(num) {
+            return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
         }
 
         // Save template modal
@@ -619,11 +862,13 @@
         // Clear form
         function clearForm() {
             document.getElementById('message-text').value = '';
+            document.getElementById('thank-you-text').value = '';
             document.getElementById('template-select').value = '';
             selectedStudents = [];
             document.querySelectorAll('#students-list input[type="checkbox"]').forEach(cb => cb.checked = false);
             updateSelectedCount();
             updateCharCount();
+            updateThankYouCharCount();
             updatePreview();
         }
 

@@ -111,9 +111,13 @@
                         class="w-full border-2 border-gray-300 rounded-lg px-4 py-2 mb-4">
                         <option value="">-- Select Book --</option>
                     </select>
-                    <button onclick="viewBookLedger()"
-                        class="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg w-full transition">
-                        View Book Ledger
+                    <button onclick="viewBookLedger('bank')"
+                        class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg w-full mb-2 transition">
+                        🏦 Bank View Book Ledger
+                    </button>
+                    <button onclick="viewBookLedger('cash')"
+                        class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg w-full transition">
+                        💵 Cash View Book Ledger
                     </button>
                 </div>
             </div>
@@ -242,8 +246,8 @@
                 const response = await axios.get(`${API_BASE}/ledgers/student/${studentId}${dateParams}`);
                 const data = response.data;
 
-                const dateRangeText = data.date_range.from && data.date_range.to
-                    ? `From: ${data.date_range.from} To: ${data.date_range.to}`
+                const dateRangeText = data.period.from && data.period.to
+                    ? `From: ${data.period.from} To: ${data.period.to}`
                     : 'All Transactions';
 
                 let html = `
@@ -254,10 +258,10 @@
                             <p class="text-sm text-gray-600">${data.student.student_reg_no} - ${data.student.class}</p>
                             <p class="text-sm font-bold text-blue-600 mt-1">${dateRangeText}</p>
                             <div class="mt-4 flex justify-center gap-3">
-                                <a href="${API_BASE}/ledgers/student/${studentId}/pdf${dateParams}" target="_blank" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded inline-flex items-center transition">
+                                <a href="${API_BASE}/ledgers/student/${studentId}/pdf${dateParams}" target="_blank" download class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded inline-flex items-center transition">
                                     📄 Download PDF
                                 </a>
-                                <a href="${API_BASE}/ledgers/student/${studentId}/csv${dateParams}" target="_blank" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded inline-flex items-center transition">
+                                <a href="${API_BASE}/ledgers/student/${studentId}/csv${dateParams}" target="_blank" download class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded inline-flex items-center transition">
                                     📊 Download CSV
                                 </a>
                             </div>
@@ -383,8 +387,8 @@
             }
         }
 
-        async function viewClassLedger() {
-            const classId = document.getElementById('classLedgerSelect').value;
+        async function viewClassLedger(classIdParam = null, page = 1) {
+            const classId = classIdParam || document.getElementById('classLedgerSelect').value;
             if (!classId) {
                 alert('⚠️ Please select a class');
                 return;
@@ -392,11 +396,12 @@
 
             try {
                 const dateParams = getDateFilterParams();
-                const response = await axios.get(`${API_BASE}/ledgers/class/${classId}${dateParams}`);
+                const separator = dateParams ? '&' : '?';
+                const response = await axios.get(`${API_BASE}/ledgers/class/${classId}${dateParams}${separator}page=${page}`);
                 const data = response.data;
 
-                const dateRangeText = data.date_range.from && data.date_range.to
-                    ? `From: ${data.date_range.from} To: ${data.date_range.to}`
+                const dateRangeText = data.period.from && data.period.to
+                    ? `From: ${data.period.from} To: ${data.period.to}`
                     : 'All Transactions';
 
                 let html = `
@@ -406,10 +411,10 @@
                             <p class="text-xl font-bold mt-2">${data.class}</p>
                             <p class="text-sm font-bold text-blue-600 mt-1">${dateRangeText}</p>
                             <div class="mt-4 flex justify-center gap-3">
-                                <a href="${API_BASE}/ledgers/class/${classId}/pdf${dateParams}" target="_blank" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded inline-flex items-center transition">
+                                <a href="${API_BASE}/ledgers/class/${classId}/pdf${dateParams}" target="_blank" download class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded inline-flex items-center transition">
                                     📄 Download PDF
                                 </a>
-                                <a href="${API_BASE}/ledgers/class/${classId}/csv${dateParams}" target="_blank" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded inline-flex items-center transition">
+                                <a href="${API_BASE}/ledgers/class/${classId}/csv${dateParams}" target="_blank" download class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded inline-flex items-center transition">
                                     📊 Download CSV
                                 </a>
                             </div>
@@ -526,8 +531,40 @@
                                 </tfoot>
                             </table>
                         </div>
-                    </div>
                 `;
+
+                // Add pagination if available
+                if (data.pagination && data.pagination.last_page > 1) {
+                    html += `
+                        <div class="mt-4 flex justify-center items-center gap-2">
+                            <button onclick="viewClassLedger(${classId}, 1)"
+                                class="px-3 py-2 rounded ${data.pagination.current_page === 1 ? 'bg-gray-300' : 'bg-blue-500 hover:bg-blue-600 text-white'}"
+                                ${data.pagination.current_page === 1 ? 'disabled' : ''}>
+                                First
+                            </button>
+                            <button onclick="viewClassLedger(${classId}, ${data.pagination.current_page - 1})"
+                                class="px-3 py-2 rounded ${data.pagination.current_page === 1 ? 'bg-gray-300' : 'bg-blue-500 hover:bg-blue-600 text-white'}"
+                                ${data.pagination.current_page === 1 ? 'disabled' : ''}>
+                                Previous
+                            </button>
+                            <span class="px-4 py-2 bg-gray-200 rounded">
+                                Page ${data.pagination.current_page} of ${data.pagination.last_page}
+                            </span>
+                            <button onclick="viewClassLedger(${classId}, ${data.pagination.current_page + 1})"
+                                class="px-3 py-2 rounded ${data.pagination.current_page === data.pagination.last_page ? 'bg-gray-300' : 'bg-blue-500 hover:bg-blue-600 text-white'}"
+                                ${data.pagination.current_page === data.pagination.last_page ? 'disabled' : ''}>
+                                Next
+                            </button>
+                            <button onclick="viewClassLedger(${classId}, ${data.pagination.last_page})"
+                                class="px-3 py-2 rounded ${data.pagination.current_page === data.pagination.last_page ? 'bg-gray-300' : 'bg-blue-500 hover:bg-blue-600 text-white'}"
+                                ${data.pagination.current_page === data.pagination.last_page ? 'disabled' : ''}>
+                                Last
+                            </button>
+                        </div>
+                    `;
+                }
+
+                html += `</div>`;
 
                 document.getElementById('ledgerContent').innerHTML = html;
             } catch (error) {
@@ -535,7 +572,7 @@
             }
         }
 
-        async function viewBookLedger() {
+        async function viewBookLedger(viewType = 'bank') {
             const bookId = document.getElementById('bookLedgerSelect').value;
             if (!bookId) {
                 alert('⚠️ Please select a book');
@@ -544,25 +581,34 @@
 
             try {
                 const dateParams = getDateFilterParams();
-                const response = await axios.get(`${API_BASE}/ledgers/book/${bookId}${dateParams}`);
+                const separator = dateParams ? '&' : '?';
+                const response = await axios.get(`${API_BASE}/ledgers/book/${bookId}${dateParams}${separator}view_type=${viewType}`);
                 const data = response.data;
 
-                const dateRangeText = data.date_range.from && data.date_range.to
-                    ? `From: ${data.date_range.from} To: ${data.date_range.to}`
+                const dateRangeText = data.period.from && data.period.to
+                    ? `From: ${data.period.from} To: ${data.period.to}`
                     : 'All Transactions';
+
+                // Determine view type labels
+                const isCashView = viewType === 'cash';
+                const viewLabel = isCashView ? '💵 CASH VIEW' : '🏦 BANK VIEW';
+                const drLabel = isCashView ? 'DR (Entries)' : 'DR (In)';
+                const crLabel = isCashView ? 'CR (Expenses)' : 'CR (Out)';
+                const drColor = isCashView ? 'text-red-600' : 'text-green-600';
+                const crColor = isCashView ? 'text-green-600' : 'text-red-600';
 
                 let html = `
                     <div class="border-2 border-orange-500 rounded-lg p-6 bg-orange-200">
                         <div class="mb-6 text-center border-b-2 border-orange-500 pb-4">
-                            <h3 class="text-2xl font-bold text-orange-800">BOOK LEDGER</h3>
+                            <h3 class="text-2xl font-bold text-orange-800">BOOK LEDGER ${viewLabel}</h3>
                             <p class="text-xl font-bold mt-2">${data.book.name}</p>
                             ${data.book.bank_account_number ? `<p class="text-sm text-gray-600">Account: ${data.book.bank_account_number}</p>` : ''}
                             <p class="text-sm font-bold text-blue-600 mt-1">${dateRangeText}</p>
                             <div class="mt-4 flex justify-center gap-3">
-                                <a href="${API_BASE}/ledgers/book/${bookId}/pdf" target="_blank" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded inline-flex items-center transition">
+                                <a href="${API_BASE}/ledgers/book/${bookId}/pdf${dateParams}${separator}view_type=${viewType}" target="_blank" download class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded inline-flex items-center transition">
                                     📄 Download PDF
                                 </a>
-                                <a href="${API_BASE}/ledgers/book/${bookId}/csv" target="_blank" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded inline-flex items-center transition">
+                                <a href="${API_BASE}/ledgers/book/${bookId}/csv${dateParams}${separator}view_type=${viewType}" target="_blank" download class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded inline-flex items-center transition">
                                     📊 Download CSV
                                 </a>
                             </div>
@@ -582,8 +628,8 @@
                                         <th class="p-3 text-left">Particular</th>
                                         <th class="p-3 text-left">Type</th>
                                         <th class="p-3 text-left">Voucher #</th>
-                                        <th class="p-3 text-right">DR (In)</th>
-                                        <th class="p-3 text-right">CR (Out)</th>
+                                        <th class="p-3 text-right">${drLabel}</th>
+                                        <th class="p-3 text-right">${crLabel}</th>
                                         <th class="p-3 text-right">Balance</th>
                                         <th class="p-3 text-left">Notes</th>
                                     </tr>
@@ -592,18 +638,66 @@
                 `;
 
                 data.ledger.forEach(entry => {
+                    // Check for month-start marker
+                    if (entry.is_month_start) {
+                        html += `
+                            <tr class="bg-green-100 border-2 border-green-500">
+                                <td colspan="7" class="p-3 font-bold text-green-800">
+                                    📅 ${entry.month} - OPENING BALANCE
+                                </td>
+                                <td class="p-3 text-right font-bold text-xl text-green-800">${formatTSh(entry.opening_balance)}</td>
+                                <td></td>
+                            </tr>
+                        `;
+                        return;
+                    }
+
+                    // Check for month-end marker
+                    if (entry.is_month_end) {
+                        html += `
+                            <tr class="bg-amber-100 border-2 border-amber-500">
+                                <td colspan="5" class="p-3 font-bold text-amber-800">
+                                    📅 ${entry.month} - CLOSING BALANCE
+                                </td>
+                                <td class="p-3 text-right font-bold text-amber-800">${formatTSh(entry.monthly_debit)}</td>
+                                <td class="p-3 text-right font-bold text-amber-800">${formatTSh(entry.monthly_credit)}</td>
+                                <td class="p-3 text-right font-bold text-xl text-amber-900">${formatTSh(entry.closing_balance)}</td>
+                                <td></td>
+                            </tr>
+                        `;
+                        return;
+                    }
+
+                    // Determine row background based on entry type
+                    let rowBg = 'hover:bg-orange-50';
+                    if (entry.particular === 'Expense') {
+                        rowBg = 'bg-orange-50 hover:bg-orange-100';
+                    } else if (entry.particular && entry.particular.includes('Suspense')) {
+                        rowBg = 'bg-amber-50 hover:bg-amber-100';
+                    } else if (entry.particular === 'Bank Deposit') {
+                        rowBg = 'bg-green-50 hover:bg-green-100';
+                    } else if (entry.particular === 'Bank Withdrawal') {
+                        rowBg = 'bg-red-50 hover:bg-red-100';
+                    }
+
                     html += `
-                        <tr class="border-t hover:bg-orange-50">
+                        <tr class="border-t ${rowBg}">
                             <td class="p-3">${entry.date}</td>
                             <td class="p-3 font-bold">${entry.student}</td>
-                            <td class="p-3">${entry.particular}</td>
+                            <td class="p-3">
+                                ${entry.particular === 'Expense' ? '<span class="px-2 py-1 rounded text-xs font-bold bg-orange-200 text-orange-800">' + entry.particular + '</span>' :
+                                  entry.particular && entry.particular.includes('Suspense') ? '<span class="px-2 py-1 rounded text-xs font-bold bg-amber-200 text-amber-800">' + entry.particular + '</span>' :
+                                  entry.particular === 'Bank Deposit' ? '<span class="px-2 py-1 rounded text-xs font-bold bg-green-200 text-green-800">' + entry.particular + '</span>' :
+                                  entry.particular === 'Bank Withdrawal' ? '<span class="px-2 py-1 rounded text-xs font-bold bg-red-200 text-red-800">' + entry.particular + '</span>' :
+                                  entry.particular}
+                            </td>
                             <td class="p-3"><span class="px-2 py-1 rounded text-xs font-bold ${
                                 entry.voucher_type === 'Receipt' ? 'bg-green-200 text-green-800' :
                                 'bg-blue-200 text-blue-800'
                             }">${entry.voucher_type}</span></td>
                             <td class="p-3 font-mono text-sm">${entry.voucher_number}</td>
-                            <td class="p-3 text-right font-bold text-green-600">${formatTSh(entry.debit)}</td>
-                            <td class="p-3 text-right font-bold text-red-600">${formatTSh(entry.credit)}</td>
+                            <td class="p-3 text-right font-bold ${drColor}">${formatTSh(entry.debit)}</td>
+                            <td class="p-3 text-right font-bold ${crColor}">${formatTSh(entry.credit)}</td>
                             <td class="p-3 text-right font-bold text-blue-700">${formatTSh(entry.balance)}</td>
                             <td class="p-3 text-sm">${entry.notes || '-'}</td>
                         </tr>
@@ -615,8 +709,8 @@
                                 <tfoot class="bg-orange-100 font-bold">
                                     <tr>
                                         <td colspan="5" class="p-3 text-right">TOTALS:</td>
-                                        <td class="p-3 text-right text-green-600">${formatTSh(data.summary.total_receipts)}</td>
-                                        <td class="p-3 text-right text-red-600">${formatTSh(data.summary.total_payments)}</td>
+                                        <td class="p-3 text-right ${drColor}">${formatTSh(data.summary.total_receipts)}</td>
+                                        <td class="p-3 text-right ${crColor}">${formatTSh(data.summary.total_payments)}</td>
                                         <td colspan="2"></td>
                                     </tr>
                                 </tfoot>

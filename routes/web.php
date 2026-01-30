@@ -17,6 +17,9 @@ use App\Http\Controllers\SuspenseAccountController;
 use App\Http\Controllers\PayrollController;
 use App\Http\Controllers\BankAPIController;
 use App\Http\Controllers\ExpenseController;
+use App\Http\Controllers\AcademicYearController;
+use App\Http\Controllers\BookTransactionController;
+use App\Http\Controllers\ScholarshipController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -40,47 +43,58 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::middleware(['check.role:superadmin,accountant'])->prefix('accountant')->name('accountant.')->group(function () {
         // Dedicated Module Pages
         Route::get('/books', function() {
-            return view('admin.accountant.modules.books');
+            $settings = \App\Models\SchoolSetting::getSettings();
+            return view('admin.accountant.modules.books', compact('settings'));
         })->name('books');
 
         Route::get('/particulars', function() {
-            return view('admin.accountant.modules.particulars');
+            $settings = \App\Models\SchoolSetting::getSettings();
+            return view('admin.accountant.modules.particulars', compact('settings'));
         })->name('particulars');
 
         Route::get('/fee-entry', function() {
-            return view('admin.accountant.modules.fee-entry');
+            $settings = \App\Models\SchoolSetting::getSettings();
+            return view('admin.accountant.modules.fee-entry', compact('settings'));
         })->name('fee-entry');
 
         Route::get('/ledgers', function() {
-            return view('admin.accountant.modules.ledgers');
+            $settings = \App\Models\SchoolSetting::getSettings();
+            return view('admin.accountant.modules.ledgers', compact('settings'));
         })->name('ledgers');
 
         Route::get('/particular-ledger', function() {
-            return view('admin.accountant.modules.particular-ledger');
+            $settings = \App\Models\SchoolSetting::getSettings();
+            return view('admin.accountant.modules.particular-ledger', compact('settings'));
         })->name('particular-ledger');
 
         Route::get('/overdue', function() {
-            return view('admin.accountant.modules.overdue');
+            $settings = \App\Models\SchoolSetting::getSettings();
+            return view('admin.accountant.modules.overdue', compact('settings'));
         })->name('overdue');
 
         Route::get('/suspense', function() {
-            return view('admin.accountant.modules.suspense');
+            $settings = \App\Models\SchoolSetting::getSettings();
+            return view('admin.accountant.modules.suspense', compact('settings'));
         })->name('suspense');
 
         Route::get('/payroll', function() {
-            return view('admin.accountant.modules.payroll');
+            $settings = \App\Models\SchoolSetting::getSettings();
+            return view('admin.accountant.modules.payroll', compact('settings'));
         })->name('payroll');
 
         Route::get('/bank-api', function() {
-            return view('admin.accountant.modules.bank-api');
+            $settings = \App\Models\SchoolSetting::getSettings();
+            return view('admin.accountant.modules.bank-api', compact('settings'));
         })->name('bank-api');
 
         Route::get('/classes', function() {
-            return view('admin.accountant.modules.classes');
+            $settings = \App\Models\SchoolSetting::getSettings();
+            return view('admin.accountant.modules.classes', compact('settings'));
         })->name('classes');
 
         Route::get('/students', function() {
-            return view('admin.accountant.modules.students');
+            $settings = \App\Models\SchoolSetting::getSettings();
+            return view('admin.accountant.modules.students', compact('settings'));
         })->name('students');
 
         Route::get('/sms', [SmsController::class, 'indexAccountant'])->name('sms');
@@ -88,10 +102,18 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/sms-logs', [SmsController::class, 'logsAccountant'])->name('sms-logs');
         Route::post('/sms/send-overdue-reminders', [SmsController::class, 'sendOverdueReminders'])->name('sms.send-overdue-reminders');
 
+        // Headmaster Management
+        Route::get('/headmasters', [\App\Http\Controllers\HeadmasterManagementController::class, 'index'])->name('headmasters');
+        Route::post('/headmasters', [\App\Http\Controllers\HeadmasterManagementController::class, 'store'])->name('headmasters.store');
+        Route::put('/headmasters/{headmaster}', [\App\Http\Controllers\HeadmasterManagementController::class, 'update'])->name('headmasters.update');
+        Route::post('/headmasters/{headmaster}/toggle', [\App\Http\Controllers\HeadmasterManagementController::class, 'toggleStatus'])->name('headmasters.toggle');
+        Route::delete('/headmasters/{headmaster}', [\App\Http\Controllers\HeadmasterManagementController::class, 'destroy'])->name('headmasters.destroy');
+
         Route::get('/invoices-page', [LedgerController::class, 'invoicesPage'])->name('invoices-page');
 
         Route::get('/expenses', function() {
-            return view('admin.accountant.modules.expenses');
+            $settings = \App\Models\SchoolSetting::getSettings();
+            return view('admin.accountant.modules.expenses', compact('settings'));
         })->name('expenses');
 
         Route::get('/settings', [\App\Http\Controllers\SettingsController::class, 'index'])->name('settings');
@@ -141,6 +163,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::put('api/school-classes/{id}', [SchoolClassController::class, 'update'])->name('api.school-classes.update');
         Route::delete('api/school-classes/{id}', [SchoolClassController::class, 'destroy'])->name('api.school-classes.destroy');
         Route::get('api/school-classes-dropdown', [SchoolClassController::class, 'apiClasses'])->name('api.school-classes.dropdown');
+        Route::get('api/classes', [SchoolClassController::class, 'index'])->name('api.classes.index'); // Alias for ledgers page
 
         // Books routes
         Route::get('api/books', [BookController::class, 'index'])->name('api.books.index');
@@ -159,8 +182,19 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('api/particulars/{id}/assign-students', [ParticularController::class, 'assignStudents'])->name('api.particulars.assign');
         Route::post('api/particulars/{id}/bulk-opening-balance', [ParticularController::class, 'bulkOpeningBalance'])->name('api.particulars.bulk');
         Route::get('api/particulars/{id}/existing-assignments', [ParticularController::class, 'getExistingAssignments'])->name('api.particulars.existing-assignments');
+        Route::get('api/particulars/{id}/students-for-new-assignment', [ParticularController::class, 'getStudentsForNewAssignment'])->name('api.particulars.students-for-new');
+        Route::post('api/particulars/{particularId}/assignments', [ParticularController::class, 'createAssignment'])->name('api.particulars.create-assignment');
         Route::put('api/particulars/{particularId}/assignments/{studentId}', [ParticularController::class, 'updateAssignment'])->name('api.particulars.update-assignment');
         Route::delete('api/particulars/{particularId}/assignments/{studentId}', [ParticularController::class, 'deleteAssignment'])->name('api.particulars.delete-assignment');
+
+        // Academic Years routes
+        Route::get('api/academic-years', [AcademicYearController::class, 'index'])->name('api.academic-years.index');
+        Route::get('api/academic-years/active', [AcademicYearController::class, 'active'])->name('api.academic-years.active');
+        Route::get('api/academic-years/current', [AcademicYearController::class, 'current'])->name('api.academic-years.current');
+        Route::post('api/academic-years', [AcademicYearController::class, 'store'])->name('api.academic-years.store');
+        Route::put('api/academic-years/{id}', [AcademicYearController::class, 'update'])->name('api.academic-years.update');
+        Route::post('api/academic-years/{id}/set-current', [AcademicYearController::class, 'setCurrent'])->name('api.academic-years.set-current');
+        Route::delete('api/academic-years/{id}', [AcademicYearController::class, 'destroy'])->name('api.academic-years.destroy');
 
         // Vouchers routes
         Route::get('api/vouchers', [VoucherController::class, 'index'])->name('api.vouchers.index');
@@ -212,6 +246,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         // SMS API routes
         Route::get('api/sms/students/class/{className}', [SmsController::class, 'getStudentsByClass'])->name('api.sms.students.class');
         Route::get('api/sms/students/search', [SmsController::class, 'searchStudents'])->name('api.sms.students.search');
+        Route::get('api/sms/credits', [SmsController::class, 'getSmsCredits'])->name('api.sms.credits');
+        Route::get('api/sms/debug-school', [SmsController::class, 'debugSchool'])->name('api.sms.debug-school');
+        Route::post('api/sms/calculate-count', [SmsController::class, 'calculateMessageSms'])->name('api.sms.calculate-count');
 
         // Suspense Account routes
         Route::get('api/suspense-accounts', [SuspenseAccountController::class, 'index'])->name('api.suspense.index');
@@ -252,7 +289,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('api/bank-webhook/simulate', [\App\Http\Controllers\BankAPIController::class, 'simulate'])->name('api.bank-webhook.simulate');
 
         // Analytics routes
+        Route::get('api/analytics/custom', [\App\Http\Controllers\AnalyticsController::class, 'getCustomAnalytics'])->name('api.analytics.custom');
         Route::get('api/analytics/{period}', [\App\Http\Controllers\AnalyticsController::class, 'getAnalytics'])->name('api.analytics');
+        Route::get('api/students/{studentId}/payment-summary', [\App\Http\Controllers\AnalyticsController::class, 'getStudentPaymentSummary'])->name('api.students.payment-summary');
+        Route::get('api/students/search', [\App\Http\Controllers\StudentController::class, 'search'])->name('api.students.search');
 
         // Bank Accounts routes
         Route::get('api/bank-accounts', [\App\Http\Controllers\BankAccountController::class, 'index'])->name('api.bank-accounts.index');
@@ -261,6 +301,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::delete('api/bank-accounts/{id}', [\App\Http\Controllers\BankAccountController::class, 'destroy'])->name('api.bank-accounts.destroy');
 
         // Expense routes
+        Route::get('api/expenses/summary', [\App\Http\Controllers\ExpenseController::class, 'summary'])->name('api.expenses.summary');
+        Route::get('api/expenses/analytics', [\App\Http\Controllers\ExpenseController::class, 'analytics'])->name('api.expenses.analytics');
         Route::get('api/expenses', [\App\Http\Controllers\ExpenseController::class, 'index'])->name('api.expenses.index');
         Route::post('api/expenses', [\App\Http\Controllers\ExpenseController::class, 'store'])->name('api.expenses.store');
         Route::get('api/expenses/{id}', [\App\Http\Controllers\ExpenseController::class, 'show'])->name('api.expenses.show');
@@ -268,13 +310,36 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::delete('api/expenses/{id}', [\App\Http\Controllers\ExpenseController::class, 'destroy'])->name('api.expenses.destroy');
         Route::post('api/expenses/{id}/process', [\App\Http\Controllers\ExpenseController::class, 'process'])->name('api.expenses.process');
         Route::post('api/expenses/{id}/cancel', [\App\Http\Controllers\ExpenseController::class, 'cancel'])->name('api.expenses.cancel');
-    });
 
-    Route::middleware(['check.role:parent'])->prefix('parent')->name('parent.')->group(function () {
-        Route::get('/invoices', [InvoiceController::class, 'index'])->name('invoices');
-        Route::get('/invoices/{invoice}', [InvoiceController::class, 'show'])->name('invoices.show');
-        Route::get('/payments', [PaymentController::class, 'index'])->name('payments');
+        // Book Transactions (Deposits & Withdrawals) routes
+        Route::get('api/book-transactions/{bookId}', [BookTransactionController::class, 'index'])->name('api.book-transactions.index');
+        Route::post('api/book-transactions/deposit', [BookTransactionController::class, 'storeDeposit'])->name('api.book-transactions.deposit');
+        Route::post('api/book-transactions/withdrawal', [BookTransactionController::class, 'storeWithdrawal'])->name('api.book-transactions.withdrawal');
+        Route::get('api/book-transactions/show/{id}', [BookTransactionController::class, 'show'])->name('api.book-transactions.show');
+        Route::delete('api/book-transactions/{id}', [BookTransactionController::class, 'destroy'])->name('api.book-transactions.destroy');
+
+        // Scholarship routes
+        Route::get('api/scholarships', [ScholarshipController::class, 'index'])->name('api.scholarships.index');
+        Route::post('api/scholarships', [ScholarshipController::class, 'store'])->name('api.scholarships.store');
+        Route::put('api/scholarships/{id}', [ScholarshipController::class, 'update'])->name('api.scholarships.update');
+        Route::post('api/scholarships/{id}/deactivate', [ScholarshipController::class, 'deactivate'])->name('api.scholarships.deactivate');
+        Route::get('api/scholarships/student/{studentId}', [ScholarshipController::class, 'studentScholarships'])->name('api.scholarships.student');
+        Route::get('api/scholarships/student/{studentId}/details', [ScholarshipController::class, 'studentDetailsForScholarship'])->name('api.scholarships.student.details');
+        Route::post('api/scholarships/check', [ScholarshipController::class, 'checkScholarship'])->name('api.scholarships.check');
+        Route::get('api/scholarships/summary/by-particular', [ScholarshipController::class, 'summaryByParticular'])->name('api.scholarships.summary');
     });
+});
+
+// Parent Portal Routes (using custom session-based auth) - OUTSIDE main auth middleware
+Route::prefix('parent')->name('parent.')->middleware('parent.auth')->group(function () {
+    Route::get('/dashboard', [App\Http\Controllers\ParentController::class, 'dashboard'])->name('dashboard');
+    Route::get('/fees', [App\Http\Controllers\ParentController::class, 'fees'])->name('fees');
+    Route::get('/invoices', [App\Http\Controllers\ParentController::class, 'invoices'])->name('invoices');
+    Route::get('/invoices/download', [App\Http\Controllers\ParentController::class, 'downloadInvoice'])->name('invoices.download');
+    Route::get('/messages', [App\Http\Controllers\ParentController::class, 'messages'])->name('messages');
+    Route::get('/notifications', [App\Http\Controllers\ParentController::class, 'notifications'])->name('notifications');
+    Route::get('/download-statement', [App\Http\Controllers\ParentController::class, 'downloadStatement'])->name('download-statement');
+    Route::post('/change-language', [App\Http\Controllers\ParentController::class, 'changeLanguage'])->name('change-language');
 });
 
 require __DIR__.'/auth.php';

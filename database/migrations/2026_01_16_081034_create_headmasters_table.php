@@ -11,16 +11,18 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('headmasters', function (Blueprint $table) {
-            $table->id();
-            $table->string('name');
-            $table->string('registration_number')->unique();
-            $table->string('email')->nullable();
-            $table->string('phone')->nullable();
-            $table->boolean('is_active')->default(true);
-            $table->rememberToken();
-            $table->timestamps();
-        });
+        if (!Schema::hasTable('headmasters')) {
+            Schema::create('headmasters', function (Blueprint $table) {
+                $table->id();
+                $table->string('name');
+                $table->string('registration_number')->unique();
+                $table->string('email')->nullable();
+                $table->string('phone')->nullable();
+                $table->boolean('is_active')->default(true);
+                $table->rememberToken();
+                $table->timestamps();
+            });
+        }
     }
 
     /**

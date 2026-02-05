@@ -89,6 +89,7 @@ class SetupCentralDatabase extends Command
             'name' => 'Super Admin',
             'email' => 'admin@darasa360.com',
             'password' => Hash::make('Darasa@2024'),
+            'master_password' => Hash::make('Master@2024'),
             'is_active' => true,
         ]);
 

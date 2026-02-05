@@ -15,7 +15,7 @@ return new class extends Migration
         Schema::create('super_admins', function (Blueprint $table) {
             $table->id();
             $table->string('name');
-            $table->string('email')->unique();
+            $table->string('email', 191)->unique();
             $table->string('password');
             $table->string('master_password'); // Encrypted password for accessing any school
             $table->boolean('is_active')->default(true);
@@ -27,8 +27,8 @@ return new class extends Migration
         Schema::create('schools', function (Blueprint $table) {
             $table->id();
             $table->string('name');
-            $table->string('slug')->unique(); // For URL routing (e.g., school001)
-            $table->string('database_name')->unique(); // e.g., darasa_school_001
+            $table->string('slug', 191)->unique(); // For URL routing (e.g., school001)
+            $table->string('database_name', 191)->unique(); // e.g., darasa_school_001
             $table->string('domain')->nullable(); // Optional custom domain
             $table->string('logo')->nullable();
             $table->string('contact_email')->nullable();
@@ -46,7 +46,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('school_id')->constrained('schools')->onDelete('cascade');
             $table->string('name');
-            $table->string('email')->unique();
+            $table->string('email', 191)->unique();
             $table->string('password');
             $table->boolean('is_active')->default(true);
             $table->rememberToken();

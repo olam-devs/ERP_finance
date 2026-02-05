@@ -20,7 +20,7 @@ return new class extends Migration
             Schema::create('users', function (Blueprint $table) {
                 $table->id();
                 $table->string('name');
-                $table->string('email')->unique();
+                $table->string('email', 191)->unique();
                 $table->timestamp('email_verified_at')->nullable();
                 $table->string('password');
                 $table->string('role')->default('accountant');
@@ -32,7 +32,7 @@ return new class extends Migration
         // Password reset tokens
         if (!Schema::hasTable('password_reset_tokens')) {
             Schema::create('password_reset_tokens', function (Blueprint $table) {
-                $table->string('email')->primary();
+                $table->string('email', 191)->primary();
                 $table->string('token');
                 $table->timestamp('created_at')->nullable();
             });
@@ -41,7 +41,7 @@ return new class extends Migration
         // Sessions
         if (!Schema::hasTable('sessions')) {
             Schema::create('sessions', function (Blueprint $table) {
-                $table->string('id')->primary();
+                $table->string('id', 191)->primary();
                 $table->foreignId('user_id')->nullable()->index();
                 $table->string('ip_address', 45)->nullable();
                 $table->text('user_agent')->nullable();
@@ -53,7 +53,7 @@ return new class extends Migration
         // Cache
         if (!Schema::hasTable('cache')) {
             Schema::create('cache', function (Blueprint $table) {
-                $table->string('key')->primary();
+                $table->string('key', 191)->primary();
                 $table->mediumText('value');
                 $table->integer('expiration');
             });
@@ -61,7 +61,7 @@ return new class extends Migration
 
         if (!Schema::hasTable('cache_locks')) {
             Schema::create('cache_locks', function (Blueprint $table) {
-                $table->string('key')->primary();
+                $table->string('key', 191)->primary();
                 $table->string('owner');
                 $table->integer('expiration');
             });
@@ -82,7 +82,7 @@ return new class extends Migration
 
         if (!Schema::hasTable('job_batches')) {
             Schema::create('job_batches', function (Blueprint $table) {
-                $table->string('id')->primary();
+                $table->string('id', 191)->primary();
                 $table->string('name');
                 $table->integer('total_jobs');
                 $table->integer('pending_jobs');
@@ -98,7 +98,7 @@ return new class extends Migration
         if (!Schema::hasTable('failed_jobs')) {
             Schema::create('failed_jobs', function (Blueprint $table) {
                 $table->id();
-                $table->string('uuid')->unique();
+                $table->string('uuid', 191)->unique();
                 $table->text('connection');
                 $table->text('queue');
                 $table->longText('payload');
@@ -142,7 +142,7 @@ return new class extends Migration
             Schema::create('students', function (Blueprint $table) {
                 $table->id();
                 $table->string('name');
-                $table->string('student_reg_no')->unique();
+                $table->string('student_reg_no', 191)->unique();
                 $table->string('class')->nullable();
                 $table->foreignId('class_id')->nullable()->constrained('school_classes')->onDelete('set null');
                 $table->string('phone')->nullable();
@@ -217,7 +217,7 @@ return new class extends Migration
         if (!Schema::hasTable('vouchers')) {
             Schema::create('vouchers', function (Blueprint $table) {
                 $table->id();
-                $table->string('voucher_no')->unique();
+                $table->string('voucher_no', 191)->unique();
                 $table->foreignId('student_id')->nullable()->constrained()->onDelete('set null');
                 $table->foreignId('particular_id')->nullable()->constrained()->onDelete('set null');
                 $table->foreignId('book_id')->nullable()->constrained()->onDelete('set null');
@@ -238,7 +238,7 @@ return new class extends Migration
             Schema::create('expenses', function (Blueprint $table) {
                 $table->id();
                 $table->foreignId('book_id')->nullable()->constrained()->onDelete('set null');
-                $table->string('expense_number')->unique();
+                $table->string('expense_number', 191)->unique();
                 $table->string('category');
                 $table->string('description');
                 $table->decimal('amount', 15, 2);
@@ -259,7 +259,7 @@ return new class extends Migration
             Schema::create('suspense_accounts', function (Blueprint $table) {
                 $table->id();
                 $table->foreignId('book_id')->nullable()->constrained()->onDelete('set null');
-                $table->string('reference_number')->unique();
+                $table->string('reference_number', 191)->unique();
                 $table->decimal('amount', 15, 2);
                 $table->string('payer_name')->nullable();
                 $table->string('payer_phone')->nullable();
@@ -280,7 +280,7 @@ return new class extends Migration
             Schema::create('staff', function (Blueprint $table) {
                 $table->id();
                 $table->string('name');
-                $table->string('employee_id')->unique();
+                $table->string('employee_id', 191)->unique();
                 $table->string('position');
                 $table->string('department')->nullable();
                 $table->string('email')->nullable();
@@ -382,7 +382,7 @@ return new class extends Migration
             Schema::create('bank_transactions', function (Blueprint $table) {
                 $table->id();
                 $table->foreignId('bank_account_id')->nullable()->constrained()->onDelete('set null');
-                $table->string('transaction_id')->unique();
+                $table->string('transaction_id', 191)->unique();
                 $table->string('reference_number')->nullable();
                 $table->string('type');
                 $table->decimal('amount', 15, 2);
@@ -404,7 +404,7 @@ return new class extends Migration
             Schema::create('headmasters', function (Blueprint $table) {
                 $table->id();
                 $table->string('name');
-                $table->string('registration_number')->unique();
+                $table->string('registration_number', 191)->unique();
                 $table->string('email')->nullable();
                 $table->string('phone')->nullable();
                 $table->boolean('is_active')->default(true);

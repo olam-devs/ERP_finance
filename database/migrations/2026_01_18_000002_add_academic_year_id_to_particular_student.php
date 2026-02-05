@@ -11,10 +11,12 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('particular_student', function (Blueprint $table) {
-            $table->unsignedBigInteger('academic_year_id')->nullable()->after('particular_id');
-            $table->foreign('academic_year_id')->references('id')->on('academic_years')->onDelete('set null');
-        });
+        if (!Schema::hasColumn('particular_student', 'academic_year_id')) {
+            Schema::table('particular_student', function (Blueprint $table) {
+                $table->unsignedBigInteger('academic_year_id')->nullable()->after('particular_id');
+                $table->foreign('academic_year_id')->references('id')->on('academic_years')->onDelete('set null');
+            });
+        }
 
         // Update existing records to use the current academic year
         $currentYear = \DB::table('academic_years')

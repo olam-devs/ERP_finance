@@ -223,11 +223,16 @@ return new class extends Migration
                 $table->foreignId('book_id')->nullable()->constrained()->onDelete('set null');
                 $table->foreignId('academic_year_id')->nullable()->constrained()->onDelete('set null');
                 $table->string('voucher_type');
-                $table->decimal('amount', 15, 2);
+                $table->decimal('amount', 15, 2)->default(0);
+                $table->decimal('debit', 15, 2)->default(0);
+                $table->decimal('credit', 15, 2)->default(0);
                 $table->string('description')->nullable();
                 $table->string('payment_method')->nullable();
                 $table->string('reference_number')->nullable();
-                $table->date('transaction_date');
+                $table->string('payment_by_receipt_to')->nullable();
+                $table->text('notes')->nullable();
+                $table->date('transaction_date')->nullable();
+                $table->date('date')->nullable();
                 $table->foreignId('created_by')->nullable()->constrained('users')->onDelete('set null');
                 $table->timestamps();
             });
@@ -239,10 +244,12 @@ return new class extends Migration
                 $table->id();
                 $table->foreignId('book_id')->nullable()->constrained()->onDelete('set null');
                 $table->string('expense_number', 191)->unique();
+                $table->string('expense_name')->nullable();
                 $table->string('category');
                 $table->string('description');
                 $table->decimal('amount', 15, 2);
-                $table->date('expense_date');
+                $table->date('expense_date')->nullable();
+                $table->date('transaction_date')->nullable();
                 $table->string('payment_method')->nullable();
                 $table->string('reference_number')->nullable();
                 $table->string('recipient')->nullable();
@@ -251,6 +258,7 @@ return new class extends Migration
                 $table->foreignId('voucher_id')->nullable()->constrained('vouchers')->onDelete('set null');
                 $table->foreignId('created_by')->nullable()->constrained('users')->onDelete('set null');
                 $table->foreignId('approved_by')->nullable()->constrained('users')->onDelete('set null');
+                $table->foreignId('processed_by')->nullable()->constrained('users')->onDelete('set null');
                 $table->timestamps();
             });
         }
@@ -265,7 +273,8 @@ return new class extends Migration
                 $table->string('payer_name')->nullable();
                 $table->string('payer_phone')->nullable();
                 $table->string('payment_method')->nullable();
-                $table->date('received_date');
+                $table->date('received_date')->nullable();
+                $table->date('date')->nullable();
                 $table->text('description')->nullable();
                 $table->string('status')->default('pending');
                 $table->foreignId('resolved_student_id')->nullable()->constrained('students')->onDelete('set null');

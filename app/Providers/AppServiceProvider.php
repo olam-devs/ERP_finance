@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Models\Central\School;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -24,7 +25,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        // Fix for MySQL key length limit on older versions
+        Schema::defaultStringLength(191);
     }
 
     /**

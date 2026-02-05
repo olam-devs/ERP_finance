@@ -71,7 +71,7 @@ return new class extends Migration
         if (!Schema::hasTable('jobs')) {
             Schema::create('jobs', function (Blueprint $table) {
                 $table->id();
-                $table->string('queue')->index();
+                $table->string('queue', 191)->index();
                 $table->longText('payload');
                 $table->unsignedTinyInteger('attempts');
                 $table->unsignedInteger('reserved_at')->nullable();

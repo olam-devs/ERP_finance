@@ -248,6 +248,7 @@ return new class extends Migration
                 $table->string('recipient')->nullable();
                 $table->string('status')->default('approved');
                 $table->text('notes')->nullable();
+                $table->foreignId('voucher_id')->nullable()->constrained('vouchers')->onDelete('set null');
                 $table->foreignId('created_by')->nullable()->constrained('users')->onDelete('set null');
                 $table->foreignId('approved_by')->nullable()->constrained('users')->onDelete('set null');
                 $table->timestamps();
@@ -271,6 +272,7 @@ return new class extends Migration
                 $table->foreignId('resolved_by')->nullable()->constrained('users')->onDelete('set null');
                 $table->timestamp('resolved_at')->nullable();
                 $table->foreignId('created_by')->nullable()->constrained('users')->onDelete('set null');
+                $table->foreignId('voucher_id')->nullable()->constrained('vouchers')->onDelete('set null');
                 $table->timestamps();
             });
         }

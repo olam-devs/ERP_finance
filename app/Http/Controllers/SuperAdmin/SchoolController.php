@@ -124,7 +124,7 @@ class SchoolController extends Controller
             'subscription_status' => 'required|in:trial,active,suspended,cancelled',
             'subscription_expires_at' => 'nullable|date',
             'accountant_name' => 'required|string|max:255',
-            'accountant_email' => 'required|email',
+            'accountant_email' => 'required|email|unique:school_accountants,email',
             'accountant_password' => 'nullable|string|min:8',
             'db_host' => 'nullable|string',
             'db_port' => 'nullable|string',

@@ -134,15 +134,9 @@ class SchoolProvisioningService
     protected function runTenantMigrations(School $school): void
     {
         // Switch to tenant database
-        if ($school->db_host) {
-            // Configure custom connection dynamically
-            config([
-                'database.connections.tenant.host' => $school->db_host,
-                'database.connections.tenant.port' => $school->db_port,
-                'database.connections.tenant.username' => $school->db_username,
-                'database.connections.tenant.password' => $school->db_password,
-            ]);
-        }
+        // Switch to tenant database
+        // Custom connection handling is now done inside tenantManager->switchToSchool()
+
 
         $this->tenantManager->switchToSchool($school);
 
@@ -188,14 +182,8 @@ class SchoolProvisioningService
     protected function seedDefaultData(School $school): void
     {
         // Temporarily configure connection if custom DB details exist
-        if ($school->db_host) {
-             config([
-                'database.connections.tenant.host' => $school->db_host,
-                'database.connections.tenant.port' => $school->db_port,
-                'database.connections.tenant.username' => $school->db_username,
-                'database.connections.tenant.password' => $school->db_password,
-            ]);
-        }
+        // Custom connection handling is now done inside tenantManager->switchToSchool()
+
 
         $this->tenantManager->executeForSchool($school, function () use ($school) {
             // Create default cash book

@@ -48,9 +48,23 @@ class TenantDatabaseManager
      */
     public function switchToSchool(School $school): void
     {
+        // 1. Set the tenant database name
         Config::set('database.connections.tenant.database', $school->database_name);
+        
+        // 2. If the school has custom DB credentials, set them
+        if ($school->db_host) {
+            Config::set('database.connections.tenant.host', $school->db_host);
+            Config::set('database.connections.tenant.port', $school->db_port);
+            Config::set('database.connections.tenant.username', $school->db_username);
+            Config::set('database.connections.tenant.password', $school->db_password);
+        }
+
+        // 3. Purge and reconnect the tenant connection
         DB::purge('tenant');
         DB::reconnect('tenant');
+        
+        // 4. Set tenant as the default connection for this request
+        Config::set('database.default', 'tenant');
         
         static::$currentSchool = $school;
         

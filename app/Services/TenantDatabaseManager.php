@@ -51,11 +51,17 @@ class TenantDatabaseManager
         // 1. Set the tenant database name
         Config::set('database.connections.tenant.database', $school->database_name);
         
-        // 2. If the school has custom DB credentials, set them
+        // 2. If the school has custom DB credentials, override only the ones provided
         if ($school->db_host) {
             Config::set('database.connections.tenant.host', $school->db_host);
+        }
+        if ($school->db_port) {
             Config::set('database.connections.tenant.port', $school->db_port);
+        }
+        if ($school->db_username) {
             Config::set('database.connections.tenant.username', $school->db_username);
+        }
+        if ($school->db_password) {
             Config::set('database.connections.tenant.password', $school->db_password);
         }
 

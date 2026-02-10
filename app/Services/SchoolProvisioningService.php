@@ -64,6 +64,9 @@ class SchoolProvisioningService
                 if ($useExistingDatabase) {
                     // Verify the existing database is accessible
                     $this->verifyExistingDatabase($school);
+
+                    // Update tenant school_settings with the school info from central
+                    $this->syncSettingsToTenant($school);
                 } else {
                     // 2. Create the database
                     if (!$this->tenantManager->createDatabase($school->database_name)) {
@@ -253,6 +256,24 @@ class SchoolProvisioningService
         });
 
         return $accountant;
+    }
+
+    /**
+     * Sync school info from central to the tenant's school_settings table.
+     */
+    public function syncSettingsToTenant(School $school): void
+    {
+        $this->tenantManager->executeForSchool($school, function () use ($school) {
+            DB::connection('tenant')->table('school_settings')
+                ->where('id', 1)
+                ->update([
+                    'school_name' => $school->name,
+                    'email' => $school->contact_email,
+                    'phone' => $school->contact_phone,
+                    'address' => $school->address,
+                    'updated_at' => now(),
+                ]);
+        });
     }
 
     /**

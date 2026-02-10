@@ -56,12 +56,20 @@
                             <p class="text-sm text-yellow-800">
                                 <strong>Note:</strong> Tenant database uses name: <span class="font-bold">{{ $tenantSettings['school_name'] }}</span>
                             </p>
-                            <form method="POST" action="{{ route('superadmin.schools.sync-name', $school) }}" class="inline mt-1">
-                                @csrf
-                                <button type="submit" class="text-xs bg-yellow-600 text-white px-2 py-1 rounded hover:bg-yellow-700">
-                                    Sync from Tenant
-                                </button>
-                            </form>
+                            <div class="flex gap-2 mt-1">
+                                <form method="POST" action="{{ route('superadmin.schools.sync-name-to-tenant', $school) }}" class="inline">
+                                    @csrf
+                                    <button type="submit" class="text-xs bg-indigo-600 text-white px-2 py-1 rounded hover:bg-indigo-700">
+                                        Sync to Tenant
+                                    </button>
+                                </form>
+                                <form method="POST" action="{{ route('superadmin.schools.sync-name', $school) }}" class="inline">
+                                    @csrf
+                                    <button type="submit" class="text-xs bg-yellow-600 text-white px-2 py-1 rounded hover:bg-yellow-700">
+                                        Sync from Tenant
+                                    </button>
+                                </form>
+                            </div>
                         </div>
                     @elseif($tenantSettings && isset($tenantSettings['school_name']))
                         <p class="text-green-600 text-sm mt-1">Tenant Name: {{ $tenantSettings['school_name'] }}</p>

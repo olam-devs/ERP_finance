@@ -37,6 +37,7 @@ Route::prefix('superadmin')->name('superadmin.')->middleware(['superadmin'])->gr
     Route::post('/schools/{school}/reset-password', [SchoolController::class, 'resetAccountantPassword'])->name('schools.reset-password');
     Route::post('/schools/{school}/sms-credits', [SchoolController::class, 'updateSmsCredits'])->name('schools.sms-credits');
     Route::post('/schools/{school}/sync-name', [SchoolController::class, 'syncNameFromTenant'])->name('schools.sync-name');
+    Route::post('/schools/{school}/sync-name-to-tenant', [SchoolController::class, 'syncNameToTenant'])->name('schools.sync-name-to-tenant');
 
     // Accountant Management for Schools
     Route::post('/schools/{school}/accountants', [SchoolController::class, 'addAccountant'])->name('schools.accountants.store');

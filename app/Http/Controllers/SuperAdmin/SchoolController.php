@@ -440,6 +440,25 @@ class SchoolController extends Controller
     /**
      * Sync school name from tenant database.
      */
+    public function syncNameToTenant(School $school)
+    {
+        try {
+            $this->provisioningService->syncSettingsToTenant($school);
+
+            $superAdmin = auth('superadmin')->user();
+            $this->activityLogger->logSuperAdminAction(
+                $superAdmin,
+                'school_name_synced_to_tenant',
+                "Synced school name to tenant: '{$school->name}'",
+                $school
+            );
+
+            return back()->with('success', "School name '{$school->name}' synced to tenant database.");
+        } catch (\Exception $e) {
+            return back()->with('error', 'Failed to sync to tenant: ' . $e->getMessage());
+        }
+    }
+
     public function syncNameFromTenant(School $school)
     {
         $tenantSettings = $this->getTenantSchoolSettings($school);

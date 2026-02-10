@@ -17,7 +17,14 @@
                     <span class="text-gray-700">Create School</span>
                 </div>
                 <div class="flex items-center gap-4">
-                    <a href="{{ route('superadmin.schools.index') }}" class="text-gray-600 hover:text-gray-800">Back to Schools</a>
+                    <a href="{{ route('superadmin.dashboard') }}" class="text-gray-600 hover:text-gray-800">Dashboard</a>
+                    <a href="{{ route('superadmin.schools.index') }}" class="text-gray-600 hover:text-gray-800">Schools</a>
+                    <a href="{{ route('superadmin.admins.index') }}" class="text-gray-600 hover:text-gray-800">Super Admins</a>
+                    <a href="{{ route('superadmin.profile') }}" class="text-gray-600 hover:text-indigo-600">{{ auth('superadmin')->user()->name }}</a>
+                    <form method="POST" action="{{ route('superadmin.logout') }}">
+                        @csrf
+                        <button type="submit" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">Logout</button>
+                    </form>
                 </div>
             </div>
         </div>

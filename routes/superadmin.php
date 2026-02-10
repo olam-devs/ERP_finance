@@ -4,6 +4,7 @@ use App\Http\Controllers\SuperAdmin\SuperAdminAuthController;
 use App\Http\Controllers\SuperAdmin\SuperAdminDashboardController;
 use App\Http\Controllers\SuperAdmin\SchoolController;
 use App\Http\Controllers\SuperAdmin\ImpersonationController;
+use App\Http\Controllers\SuperAdmin\SuperAdminManagementController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -45,17 +46,23 @@ Route::prefix('superadmin')->name('superadmin.')->middleware(['superadmin'])->gr
     Route::post('/schools/{school}/accountants/{accountant}/toggle', [SchoolController::class, 'toggleAccountantStatus'])->name('schools.accountants.toggle');
     Route::delete('/schools/{school}/accountants/{accountant}', [SchoolController::class, 'deleteAccountant'])->name('schools.accountants.destroy');
     
+    // Super Admin Management
+    Route::get('/admins', [SuperAdminManagementController::class, 'index'])->name('admins.index');
+    Route::post('/admins', [SuperAdminManagementController::class, 'store'])->name('admins.store');
+    Route::put('/admins/{superAdmin}', [SuperAdminManagementController::class, 'update'])->name('admins.update');
+    Route::post('/admins/{superAdmin}/toggle', [SuperAdminManagementController::class, 'toggleStatus'])->name('admins.toggle');
+    Route::post('/admins/{superAdmin}/reset-password', [SuperAdminManagementController::class, 'resetPassword'])->name('admins.reset-password');
+
+    // Profile / Change Password
+    Route::get('/profile', [SuperAdminAuthController::class, 'profile'])->name('profile');
+    Route::put('/profile/password', [SuperAdminAuthController::class, 'updatePassword'])->name('profile.update-password');
+
     // Impersonation
     Route::post('/impersonate/{school}', [ImpersonationController::class, 'impersonate'])->name('impersonate');
     Route::post('/stop-impersonation', [ImpersonationController::class, 'stopImpersonation'])->name('stop-impersonation');
     
     // Activity Logs
-    Route::get('/activity-logs', function () {
-        $logs = \App\Models\Central\ActivityLog::with('school')
-            ->latest()
-            ->paginate(50);
-        return view('superadmin.activity-logs', compact('logs'));
-    })->name('activity-logs');
+    Route::get('/activity-logs', [SuperAdminDashboardController::class, 'activityLogs'])->name('activity-logs');
     
     // Analytics
     Route::get('/analytics', function () {

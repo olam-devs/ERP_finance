@@ -92,4 +92,41 @@ class SuperAdminAuthController extends Controller
         return redirect()->route('superadmin.login')
             ->with('success', 'You have been logged out successfully.');
     }
+
+    /**
+     * Show the profile page.
+     */
+    public function profile()
+    {
+        return view('superadmin.profile');
+    }
+
+    /**
+     * Update the super admin's own password.
+     */
+    public function updatePassword(Request $request)
+    {
+        $request->validate([
+            'current_password' => 'required',
+            'password' => 'required|string|min:8|confirmed',
+        ]);
+
+        $superAdmin = auth('superadmin')->user();
+
+        if (!Hash::check($request->current_password, $superAdmin->password)) {
+            return back()->withErrors(['current_password' => 'The current password is incorrect.']);
+        }
+
+        $superAdmin->update([
+            'password' => $request->password,
+        ]);
+
+        $this->activityLogger->logSuperAdminAction(
+            $superAdmin,
+            'password_changed',
+            'Super admin changed their own password'
+        );
+
+        return back()->with('success', 'Password updated successfully!');
+    }
 }

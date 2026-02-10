@@ -16,7 +16,10 @@
                     <h1 class="text-2xl font-bold text-indigo-600">Darasa Finance - Super Admin</h1>
                 </div>
                 <div class="flex items-center gap-4">
-                    <span class="text-gray-700">{{ auth('superadmin')->user()->name }}</span>
+                    <a href="{{ route('superadmin.schools.index') }}" class="text-gray-600 hover:text-gray-800">Schools</a>
+                    <a href="{{ route('superadmin.activity-logs') }}" class="text-gray-600 hover:text-gray-800">Logs</a>
+                    <a href="{{ route('superadmin.admins.index') }}" class="text-gray-600 hover:text-gray-800">Super Admins</a>
+                    <a href="{{ route('superadmin.profile') }}" class="text-gray-600 hover:text-indigo-600">{{ auth('superadmin')->user()->name }}</a>
                     <form method="POST" action="{{ route('superadmin.logout') }}">
                         @csrf
                         <button type="submit" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">

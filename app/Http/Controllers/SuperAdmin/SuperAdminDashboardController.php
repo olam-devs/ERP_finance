@@ -83,4 +83,43 @@ class SuperAdminDashboardController extends Controller
             'revenueTrend'
         ));
     }
+
+    /**
+     * Display the activity logs with filters.
+     */
+    public function activityLogs(Request $request)
+    {
+        $query = ActivityLog::with('school')->latest();
+
+        if ($request->filled('user_type') && $request->user_type !== 'all') {
+            $query->where('user_type', $request->user_type);
+        }
+
+        if ($request->filled('school_id') && $request->school_id !== 'all') {
+            $query->where('school_id', $request->school_id);
+        }
+
+        if ($request->filled('date_from')) {
+            $query->whereDate('created_at', '>=', $request->date_from);
+        }
+
+        if ($request->filled('date_to')) {
+            $query->whereDate('created_at', '<=', $request->date_to);
+        }
+
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('description', 'like', "%{$search}%")
+                  ->orWhere('action', 'like', "%{$search}%")
+                  ->orWhere('user_name', 'like', "%{$search}%");
+            });
+        }
+
+        $logs = $query->paginate(50)->withQueryString();
+        $schools = School::orderBy('name')->get(['id', 'name']);
+        $userTypes = ['super_admin', 'accountant', 'headmaster', 'parent'];
+
+        return view('superadmin.activity-logs', compact('logs', 'schools', 'userTypes'));
+    }
 }

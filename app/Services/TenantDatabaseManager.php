@@ -80,9 +80,7 @@ class TenantDatabaseManager
     public function switchToCentral(): void
     {
         Config::set('database.default', 'central');
-        DB::purge('central');
-        DB::reconnect('central');
-        
+
         static::$currentSchool = null;
     }
 

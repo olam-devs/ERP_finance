@@ -187,7 +187,7 @@ class SchoolProvisioningService
 
         $this->tenantManager->executeForSchool($school, function () use ($school) {
             // Create default cash book
-            DB::table('books')->insert([
+            DB::connection('tenant')->table('books')->insert([
                 'name' => 'Cash Book',
                 'type' => 'cash',
                 'description' => 'Default cash book for the school',
@@ -197,7 +197,7 @@ class SchoolProvisioningService
             ]);
 
             // Create school settings
-            DB::table('school_settings')->insert([
+            DB::connection('tenant')->table('school_settings')->insert([
                 'school_name' => $school->name,
                 'email' => $school->contact_email,
                 'phone' => $school->contact_phone,
@@ -206,11 +206,11 @@ class SchoolProvisioningService
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
-            
+
             // Create default classes
             $classes = ['Form One', 'Form Two', 'Form Three', 'Form Four'];
             foreach ($classes as $className) {
-                DB::table('school_classes')->insert([
+                DB::connection('tenant')->table('school_classes')->insert([
                     'name' => $className,
                     'description' => "Default {$className} class",
                     'is_active' => true,
@@ -242,7 +242,7 @@ class SchoolProvisioningService
 
         // Also create the user in the tenant database
         $this->tenantManager->executeForSchool($school, function () use ($accountant, $password) {
-            DB::table('users')->insert([
+            DB::connection('tenant')->table('users')->insert([
                 'name' => $accountant->name,
                 'email' => $accountant->email,
                 'password' => Hash::make($password),

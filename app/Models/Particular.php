@@ -3,9 +3,8 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
 
-class Particular extends Model
+class Particular extends BaseModel
 {
     use HasFactory;
 
@@ -55,9 +54,10 @@ class Particular extends Model
 
     public function books()
     {
-        if (!$this->book_ids) {
+        if (! $this->book_ids) {
             return collect();
         }
+
         return Book::whereIn('id', $this->book_ids)->get();
     }
 }

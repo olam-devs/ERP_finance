@@ -16,7 +16,7 @@ return new class extends Migration
     public function up(): void
     {
         // Users table
-        if (!Schema::hasTable('users')) {
+        if (! Schema::hasTable('users')) {
             Schema::create('users', function (Blueprint $table) {
                 $table->id();
                 $table->string('name');
@@ -30,7 +30,7 @@ return new class extends Migration
         }
 
         // Password reset tokens
-        if (!Schema::hasTable('password_reset_tokens')) {
+        if (! Schema::hasTable('password_reset_tokens')) {
             Schema::create('password_reset_tokens', function (Blueprint $table) {
                 $table->string('email', 191)->primary();
                 $table->string('token');
@@ -39,7 +39,7 @@ return new class extends Migration
         }
 
         // Sessions
-        if (!Schema::hasTable('sessions')) {
+        if (! Schema::hasTable('sessions')) {
             Schema::create('sessions', function (Blueprint $table) {
                 $table->string('id', 191)->primary();
                 $table->foreignId('user_id')->nullable()->index();
@@ -51,7 +51,7 @@ return new class extends Migration
         }
 
         // Cache
-        if (!Schema::hasTable('cache')) {
+        if (! Schema::hasTable('cache')) {
             Schema::create('cache', function (Blueprint $table) {
                 $table->string('key', 191)->primary();
                 $table->mediumText('value');
@@ -59,7 +59,7 @@ return new class extends Migration
             });
         }
 
-        if (!Schema::hasTable('cache_locks')) {
+        if (! Schema::hasTable('cache_locks')) {
             Schema::create('cache_locks', function (Blueprint $table) {
                 $table->string('key', 191)->primary();
                 $table->string('owner');
@@ -68,7 +68,7 @@ return new class extends Migration
         }
 
         // Jobs
-        if (!Schema::hasTable('jobs')) {
+        if (! Schema::hasTable('jobs')) {
             Schema::create('jobs', function (Blueprint $table) {
                 $table->id();
                 $table->string('queue', 191)->index();
@@ -80,7 +80,7 @@ return new class extends Migration
             });
         }
 
-        if (!Schema::hasTable('job_batches')) {
+        if (! Schema::hasTable('job_batches')) {
             Schema::create('job_batches', function (Blueprint $table) {
                 $table->string('id', 191)->primary();
                 $table->string('name');
@@ -95,7 +95,7 @@ return new class extends Migration
             });
         }
 
-        if (!Schema::hasTable('failed_jobs')) {
+        if (! Schema::hasTable('failed_jobs')) {
             Schema::create('failed_jobs', function (Blueprint $table) {
                 $table->id();
                 $table->string('uuid', 191)->unique();
@@ -108,7 +108,7 @@ return new class extends Migration
         }
 
         // School Settings
-        if (!Schema::hasTable('school_settings')) {
+        if (! Schema::hasTable('school_settings')) {
             Schema::create('school_settings', function (Blueprint $table) {
                 $table->id();
                 $table->string('school_name');
@@ -126,7 +126,7 @@ return new class extends Migration
         }
 
         // School Classes
-        if (!Schema::hasTable('school_classes')) {
+        if (! Schema::hasTable('school_classes')) {
             Schema::create('school_classes', function (Blueprint $table) {
                 $table->id();
                 $table->string('name');
@@ -138,7 +138,7 @@ return new class extends Migration
         }
 
         // Students
-        if (!Schema::hasTable('students')) {
+        if (! Schema::hasTable('students')) {
             Schema::create('students', function (Blueprint $table) {
                 $table->id();
                 $table->string('name');
@@ -159,7 +159,7 @@ return new class extends Migration
         }
 
         // Books (Cash/Bank accounts)
-        if (!Schema::hasTable('books')) {
+        if (! Schema::hasTable('books')) {
             Schema::create('books', function (Blueprint $table) {
                 $table->id();
                 $table->string('name');
@@ -174,7 +174,7 @@ return new class extends Migration
         }
 
         // Particulars (Fee items)
-        if (!Schema::hasTable('particulars')) {
+        if (! Schema::hasTable('particulars')) {
             Schema::create('particulars', function (Blueprint $table) {
                 $table->id();
                 $table->string('name');
@@ -186,7 +186,7 @@ return new class extends Migration
         }
 
         // Academic Years
-        if (!Schema::hasTable('academic_years')) {
+        if (! Schema::hasTable('academic_years')) {
             Schema::create('academic_years', function (Blueprint $table) {
                 $table->id();
                 $table->string('name');
@@ -198,7 +198,7 @@ return new class extends Migration
         }
 
         // Particular-Student pivot table
-        if (!Schema::hasTable('particular_student')) {
+        if (! Schema::hasTable('particular_student')) {
             Schema::create('particular_student', function (Blueprint $table) {
                 $table->id();
                 $table->foreignId('particular_id')->constrained()->onDelete('cascade');
@@ -214,7 +214,7 @@ return new class extends Migration
         }
 
         // Vouchers (Transactions)
-        if (!Schema::hasTable('vouchers')) {
+        if (! Schema::hasTable('vouchers')) {
             Schema::create('vouchers', function (Blueprint $table) {
                 $table->id();
                 $table->string('voucher_no', 191)->unique();
@@ -239,7 +239,7 @@ return new class extends Migration
         }
 
         // Expenses
-        if (!Schema::hasTable('expenses')) {
+        if (! Schema::hasTable('expenses')) {
             Schema::create('expenses', function (Blueprint $table) {
                 $table->id();
                 $table->foreignId('book_id')->nullable()->constrained()->onDelete('set null');
@@ -264,12 +264,14 @@ return new class extends Migration
         }
 
         // Suspense Accounts
-        if (!Schema::hasTable('suspense_accounts')) {
+        if (! Schema::hasTable('suspense_accounts')) {
             Schema::create('suspense_accounts', function (Blueprint $table) {
                 $table->id();
                 $table->foreignId('book_id')->nullable()->constrained()->onDelete('set null');
                 $table->string('reference_number', 191)->unique();
                 $table->decimal('amount', 15, 2);
+                $table->decimal('resolved_amount', 15, 2)->default(0);
+                $table->boolean('resolved')->default(false);
                 $table->string('payer_name')->nullable();
                 $table->string('payer_phone')->nullable();
                 $table->string('payment_method')->nullable();
@@ -287,7 +289,7 @@ return new class extends Migration
         }
 
         // Staff
-        if (!Schema::hasTable('staff')) {
+        if (! Schema::hasTable('staff')) {
             Schema::create('staff', function (Blueprint $table) {
                 $table->id();
                 $table->string('name');
@@ -306,7 +308,7 @@ return new class extends Migration
         }
 
         // Payroll Entries
-        if (!Schema::hasTable('payroll_entries')) {
+        if (! Schema::hasTable('payroll_entries')) {
             Schema::create('payroll_entries', function (Blueprint $table) {
                 $table->id();
                 $table->foreignId('staff_id')->constrained()->onDelete('cascade');
@@ -328,7 +330,7 @@ return new class extends Migration
         }
 
         // SMS Logs
-        if (!Schema::hasTable('sms_logs')) {
+        if (! Schema::hasTable('sms_logs')) {
             Schema::create('sms_logs', function (Blueprint $table) {
                 $table->id();
                 $table->foreignId('student_id')->nullable()->constrained()->onDelete('set null');
@@ -346,7 +348,7 @@ return new class extends Migration
         }
 
         // SMS Templates
-        if (!Schema::hasTable('sms_templates')) {
+        if (! Schema::hasTable('sms_templates')) {
             Schema::create('sms_templates', function (Blueprint $table) {
                 $table->id();
                 $table->string('name');
@@ -360,7 +362,7 @@ return new class extends Migration
         }
 
         // Bank Accounts
-        if (!Schema::hasTable('bank_accounts')) {
+        if (! Schema::hasTable('bank_accounts')) {
             Schema::create('bank_accounts', function (Blueprint $table) {
                 $table->id();
                 $table->string('account_name');
@@ -374,7 +376,7 @@ return new class extends Migration
         }
 
         // Bank API Settings
-        if (!Schema::hasTable('bank_api_settings')) {
+        if (! Schema::hasTable('bank_api_settings')) {
             Schema::create('bank_api_settings', function (Blueprint $table) {
                 $table->id();
                 $table->string('bank_name');
@@ -389,7 +391,7 @@ return new class extends Migration
         }
 
         // Bank Transactions
-        if (!Schema::hasTable('bank_transactions')) {
+        if (! Schema::hasTable('bank_transactions')) {
             Schema::create('bank_transactions', function (Blueprint $table) {
                 $table->id();
                 $table->foreignId('bank_account_id')->nullable()->constrained()->onDelete('set null');
@@ -411,7 +413,7 @@ return new class extends Migration
         }
 
         // Headmasters
-        if (!Schema::hasTable('headmasters')) {
+        if (! Schema::hasTable('headmasters')) {
             Schema::create('headmasters', function (Blueprint $table) {
                 $table->id();
                 $table->string('name');
@@ -424,7 +426,7 @@ return new class extends Migration
         }
 
         // Book Transactions
-        if (!Schema::hasTable('book_transactions')) {
+        if (! Schema::hasTable('book_transactions')) {
             Schema::create('book_transactions', function (Blueprint $table) {
                 $table->id();
                 $table->foreignId('from_book_id')->constrained('books')->onDelete('cascade');
@@ -439,7 +441,7 @@ return new class extends Migration
         }
 
         // Scholarships
-        if (!Schema::hasTable('scholarships')) {
+        if (! Schema::hasTable('scholarships')) {
             Schema::create('scholarships', function (Blueprint $table) {
                 $table->id();
                 $table->string('name');
@@ -453,7 +455,7 @@ return new class extends Migration
         }
 
         // Scholarship-Student pivot table
-        if (!Schema::hasTable('scholarship_student')) {
+        if (! Schema::hasTable('scholarship_student')) {
             Schema::create('scholarship_student', function (Blueprint $table) {
                 $table->id();
                 $table->foreignId('scholarship_id')->constrained()->onDelete('cascade');

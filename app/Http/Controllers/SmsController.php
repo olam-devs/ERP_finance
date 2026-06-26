@@ -349,17 +349,18 @@ class SmsController extends Controller
             ]);
 
             if ($response->successful()) {
-                // Deduct SMS credits on success
-                $school->deductSmsCredits($smsCount);
+                if ($school) {
+                    $school->deductSmsCredits($smsCount);
+                }
 
                 return response()->json([
                     'success' => true,
                     'message' => 'SMS sent successfully',
                     'data' => $responseData,
-                    'sms_credits' => [
+                    'sms_credits' => $school ? [
                         'used' => $smsCount,
                         'remaining' => $school->fresh()->sms_credits_remaining,
-                    ],
+                    ] : null,
                 ]);
             } else {
                 return response()->json([
@@ -475,8 +476,8 @@ class SmsController extends Controller
             $smsCount = $this->calculateSmsCount($personalizedMessage);
 
             foreach ($phoneNumbers as $phone) {
-                // Check remaining credits before each send
-                if (!$school->fresh()->hasSmsCredits($smsCount)) {
+                // Check remaining credits before each send (only when school is tracked)
+                if ($school && !$school->fresh()->hasSmsCredits($smsCount)) {
                     $failed++;
                     $errors[] = "{$student->name}: Insufficient SMS credits";
                     continue;
@@ -510,8 +511,9 @@ class SmsController extends Controller
                     ]);
 
                     if ($response->successful()) {
-                        // Deduct credits on success
-                        $school->deductSmsCredits($smsCount);
+                        if ($school) {
+                            $school->deductSmsCredits($smsCount);
+                        }
                         $totalSmsUsed += $smsCount;
                         $sent++;
                     } else {
@@ -533,10 +535,10 @@ class SmsController extends Controller
             'failed' => $failed,
             'skipped' => $skipped,
             'errors' => $errors,
-            'sms_credits' => [
+            'sms_credits' => $school ? [
                 'used' => $totalSmsUsed,
                 'remaining' => $school->fresh()->sms_credits_remaining,
-            ],
+            ] : ['used' => $totalSmsUsed, 'remaining' => null],
         ]);
     }
 
@@ -799,10 +801,12 @@ class SmsController extends Controller
     {
         $search = $request->get('q', '');
 
-        $students = Student::where('name', 'LIKE', "%{$search}%")
-            ->orWhere('student_reg_no', 'LIKE', "%{$search}%")
+        $students = Student::where(function ($q) use ($search) {
+                $q->where('name', 'LIKE', "%{$search}%")
+                    ->orWhere('student_reg_no', 'LIKE', "%{$search}%");
+            })
             ->where('status', 'active')
-            ->where(function($query) {
+            ->where(function ($query) {
                 $query->whereNotNull('parent_phone_1')
                     ->orWhereNotNull('parent_phone_2');
             })
@@ -869,8 +873,8 @@ class SmsController extends Controller
 
                 $smsCount = $this->calculateSmsCount($message);
 
-                // Check credits before each send
-                if (!$school->fresh()->hasSmsCredits($smsCount)) {
+                // Check credits before each send (only when school is tracked)
+                if ($school && !$school->fresh()->hasSmsCredits($smsCount)) {
                     $failed++;
                     continue;
                 }
@@ -903,7 +907,9 @@ class SmsController extends Controller
                     ]);
 
                     if ($response->successful()) {
-                        $school->deductSmsCredits($smsCount);
+                        if ($school) {
+                            $school->deductSmsCredits($smsCount);
+                        }
                         $totalSmsUsed += $smsCount;
                         $sent++;
                     } else {
@@ -921,10 +927,10 @@ class SmsController extends Controller
             'message' => "Sent {$sent} reminders, {$failed} failed",
             'sent' => $sent,
             'failed' => $failed,
-            'sms_credits' => [
+            'sms_credits' => $school ? [
                 'used' => $totalSmsUsed,
                 'remaining' => $school->fresh()->sms_credits_remaining,
-            ],
+            ] : ['used' => $totalSmsUsed, 'remaining' => null],
         ]);
     }
 }

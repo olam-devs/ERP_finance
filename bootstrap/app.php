@@ -1,5 +1,12 @@
 <?php
 
+use App\Http\Middleware\CheckRole;
+use App\Http\Middleware\EnsureCanEditHistory;
+use App\Http\Middleware\HeadmasterAuthMiddleware;
+use App\Http\Middleware\IdentifyTenant;
+use App\Http\Middleware\ParentAuthMiddleware;
+use App\Http\Middleware\RedirectLocalhostTo127;
+use App\Http\Middleware\SuperAdminMiddleware;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -18,12 +25,26 @@ return Application::configure(basePath: dirname(__DIR__))
         },
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->redirectGuestsTo(function ($request) {
+            if ($request->is('superadmin*')) {
+                return route('superadmin.login');
+            }
+            return route('login');
+        });
+
         $middleware->alias([
-            'check.role' => \App\Http\Middleware\CheckRole::class,
-            'parent.auth' => \App\Http\Middleware\ParentAuthMiddleware::class,
-            'tenant' => \App\Http\Middleware\IdentifyTenant::class,
-            'superadmin' => \App\Http\Middleware\SuperAdminMiddleware::class,
-            'headmaster.auth' => \App\Http\Middleware\HeadmasterAuthMiddleware::class,
+            'check.role' => CheckRole::class,
+            'parent.auth' => ParentAuthMiddleware::class,
+            'tenant' => IdentifyTenant::class,
+            'superadmin' => SuperAdminMiddleware::class,
+            'headmaster.auth' => HeadmasterAuthMiddleware::class,
+            'can.edit.history' => EnsureCanEditHistory::class,
+            'finance.portal' => \App\Http\Middleware\EnsureFinancePortalAccess::class,
+            'portal.session' => \App\Http\Middleware\EnsurePortalSession::class,
+        ]);
+
+        $middleware->appendToGroup('web', [
+            RedirectLocalhostTo127::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

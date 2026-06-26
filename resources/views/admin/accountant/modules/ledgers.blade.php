@@ -1,48 +1,9 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>Ledgers - Darasa Finance</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
-</head>
-<body class="bg-gray-100">
-    @include('components.sidebar')
+@extends($portalLayout ?? 'layouts.accountant')
 
-    <!-- Header -->
-    <nav class="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-4 shadow-lg mb-6 sticky top-0 z-40">
-        <div class="container mx-auto flex justify-between items-center">
-            <div class="flex items-center gap-4">
-                <!-- Menu Button -->
-                <button onclick="toggleSidebar()" class="hover:bg-white hover:bg-opacity-20 p-2 rounded transition">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
-                    </svg>
-                </button>
-                <!-- Clickable Logo -->
-                <a href="{{ route('accountant.dashboard') }}" class="flex items-center gap-2 hover:opacity-80 transition">
-                    @if($settings->logo_path && file_exists(public_path('storage/' . $settings->logo_path)))
-                        <img src="{{ asset('storage/' . $settings->logo_path) }}" alt="School Logo" class="w-10 h-10 rounded-lg bg-white p-1 object-contain">
-                    @else
-                        <div class="bg-white bg-opacity-20 p-2 rounded-lg">
-                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
-                            </svg>
-                        </div>
-                    @endif
-                    <h1 class="text-2xl font-bold">📊 Ledgers</h1>
-                </a>
-            </div>
-            <div class="flex gap-3 items-center">
-                <form method="POST" action="{{ route('logout') }}">
-                    @csrf
-                    <button type="submit" class="bg-red-500 hover:bg-red-600 px-4 py-2 rounded transition">Logout</button>
-                </form>
-            </div>
-        </div>
-    </nav>
+@section('title', 'Ledgers — Darasa Finance')
+@section('page_title', 'Ledgers')
+
+@section('content')
 
     <!-- Module Content -->
     <div class="container mx-auto p-6">
@@ -129,8 +90,11 @@
     </div>
 
     <!-- Module Scripts -->
+@endsection
+
+@push('scripts')
     <script>
-        const API_BASE = '/api';
+const API_BASE = '/api';
         let allBooks = [];
         let allStudents = [];
         let allClasses = [];
@@ -383,14 +347,11 @@
 
                 document.getElementById('ledgerContent').innerHTML = html;
             } catch (error) {
-                alert('Error loading ledger: ' + error.message);
+                showDarasaToast({ type: 'error', title: 'Student ledger', message: darasaAxiosMessage(error) });
             }
-        }
-
-        async function viewClassLedger(classIdParam = null, page = 1) {
             const classId = classIdParam || document.getElementById('classLedgerSelect').value;
             if (!classId) {
-                alert('⚠️ Please select a class');
+                showDarasaToast({ type: 'warning', title: 'Class ledger', message: 'Please select a class.' });
                 return;
             }
 
@@ -568,14 +529,14 @@
 
                 document.getElementById('ledgerContent').innerHTML = html;
             } catch (error) {
-                alert('Error loading ledger: ' + error.message);
+                showDarasaToast({ type: 'error', title: 'Class ledger', message: darasaAxiosMessage(error) });
             }
         }
 
         async function viewBookLedger(viewType = 'bank') {
             const bookId = document.getElementById('bookLedgerSelect').value;
             if (!bookId) {
-                alert('⚠️ Please select a book');
+                showDarasaToast({ type: 'warning', title: 'Book ledger', message: 'Please select a book.' });
                 return;
             }
 
@@ -591,11 +552,11 @@
 
                 // Determine view type labels
                 const isCashView = viewType === 'cash';
-                const viewLabel = isCashView ? '💵 CASH VIEW' : '🏦 BANK VIEW';
-                const drLabel = isCashView ? 'DR (Entries)' : 'DR (In)';
-                const crLabel = isCashView ? 'CR (Expenses)' : 'CR (Out)';
-                const drColor = isCashView ? 'text-red-600' : 'text-green-600';
-                const crColor = isCashView ? 'text-green-600' : 'text-red-600';
+                const viewLabel = isCashView ? '📒 ACCOUNTANT VIEW' : '🏦 BANK VIEW';
+                const drLabel = isCashView ? 'DR (Rec/In)' : 'DR (Pay/Out)';
+                const crLabel = isCashView ? 'CR (Pay/Out)' : 'CR (Rec/In)';
+                const drColor = isCashView ? 'text-green-600' : 'text-red-600';
+                const crColor = isCashView ? 'text-red-600' : 'text-green-600';
 
                 let html = `
                     <div class="border-2 border-orange-500 rounded-lg p-6 bg-orange-200">
@@ -793,9 +754,8 @@
 
                 document.getElementById('ledgerContent').innerHTML = html;
             } catch (error) {
-                alert('Error loading ledger: ' + error.message);
+                showDarasaToast({ type: 'error', title: 'Book ledger', message: darasaAxiosMessage(error) });
             }
         }
     </script>
-</body>
-</html>
+@endpush

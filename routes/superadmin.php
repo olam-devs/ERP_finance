@@ -5,6 +5,8 @@ use App\Http\Controllers\SuperAdmin\SuperAdminDashboardController;
 use App\Http\Controllers\SuperAdmin\SchoolController;
 use App\Http\Controllers\SuperAdmin\ImpersonationController;
 use App\Http\Controllers\SuperAdmin\SuperAdminManagementController;
+use App\Http\Controllers\SuperAdmin\PlatformStudentController;
+use App\Http\Controllers\SuperAdmin\CrossAccessController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -39,6 +41,8 @@ Route::prefix('superadmin')->name('superadmin.')->middleware(['superadmin'])->gr
     Route::post('/schools/{school}/sms-credits', [SchoolController::class, 'updateSmsCredits'])->name('schools.sms-credits');
     Route::post('/schools/{school}/sync-name', [SchoolController::class, 'syncNameFromTenant'])->name('schools.sync-name');
     Route::post('/schools/{school}/sync-name-to-tenant', [SchoolController::class, 'syncNameToTenant'])->name('schools.sync-name-to-tenant');
+    Route::post('/schools/{school}/toggle-platform-flag', [SchoolController::class, 'togglePlatformFlag'])->name('schools.toggle-platform-flag');
+    Route::post('/schools/{school}/reallot-sms', [SchoolController::class, 'reallotSmsCredits'])->name('schools.reallot-sms');
 
     // Accountant Management for Schools
     Route::post('/schools/{school}/accountants', [SchoolController::class, 'addAccountant'])->name('schools.accountants.store');
@@ -46,6 +50,23 @@ Route::prefix('superadmin')->name('superadmin.')->middleware(['superadmin'])->gr
     Route::post('/schools/{school}/accountants/{accountant}/toggle', [SchoolController::class, 'toggleAccountantStatus'])->name('schools.accountants.toggle');
     Route::delete('/schools/{school}/accountants/{accountant}', [SchoolController::class, 'deleteAccountant'])->name('schools.accountants.destroy');
     
+    // Platform Student & Class Registry (per-school)
+    Route::get('/schools/{school}/classes', [PlatformStudentController::class, 'classesIndex'])->name('schools.classes');
+    Route::post('/schools/{school}/classes', [PlatformStudentController::class, 'storeClass'])->name('schools.classes.store');
+    Route::delete('/schools/{school}/classes/{class}', [PlatformStudentController::class, 'destroyClass'])->name('schools.classes.destroy');
+
+    Route::get('/schools/{school}/students', [PlatformStudentController::class, 'studentsIndex'])->name('schools.students');
+    Route::post('/schools/{school}/students', [PlatformStudentController::class, 'storeStudent'])->name('schools.students.store');
+    Route::post('/schools/{school}/students/import', [PlatformStudentController::class, 'importStudents'])->name('schools.students.import');
+    Route::post('/schools/{school}/students/sync-all', [PlatformStudentController::class, 'syncAll'])->name('schools.students.sync-all');
+    Route::delete('/schools/{school}/students/{student}', [PlatformStudentController::class, 'destroyStudent'])->name('schools.students.destroy');
+
+    // Cross-Access Grants
+    Route::get('/schools/{school}/grants', [CrossAccessController::class, 'index'])->name('schools.grants');
+    Route::post('/schools/{school}/grants', [CrossAccessController::class, 'store'])->name('schools.grants.store');
+    Route::post('/schools/{school}/grants/{grant}/toggle', [CrossAccessController::class, 'toggle'])->name('schools.grants.toggle');
+    Route::delete('/schools/{school}/grants/{grant}', [CrossAccessController::class, 'destroy'])->name('schools.grants.destroy');
+
     // Super Admin Management
     Route::get('/admins', [SuperAdminManagementController::class, 'index'])->name('admins.index');
     Route::post('/admins', [SuperAdminManagementController::class, 'store'])->name('admins.store');

@@ -2,26 +2,35 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class BookTransaction extends Model
+class BookTransaction extends BaseModel
 {
     protected $fillable = [
+        // Legacy transfer schema compatibility
+        'from_book_id',
+        'to_book_id',
+        'description',
         'book_id',
         'transaction_type',
+        'fee_category_id',
         'amount',
         'transaction_date',
         'reference_number',
         'short_notes',
         'full_details',
         'voucher_id',
+        'fee_voucher_id',
         'created_by',
+        'cancelled_at',
+        'cancel_reason',
+        'replaced_by_transaction_id',
     ];
 
     protected $casts = [
         'amount' => 'decimal:2',
         'transaction_date' => 'date',
+        'cancelled_at' => 'datetime',
     ];
 
     /**
@@ -38,6 +47,16 @@ class BookTransaction extends Model
     public function voucher(): BelongsTo
     {
         return $this->belongsTo(Voucher::class);
+    }
+
+    public function feeVoucher(): BelongsTo
+    {
+        return $this->belongsTo(Voucher::class, 'fee_voucher_id');
+    }
+
+    public function feeCategory(): BelongsTo
+    {
+        return $this->belongsTo(BookFeeCategory::class, 'fee_category_id');
     }
 
     /**

@@ -1,102 +1,82 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Download Student Invoices - Darasa Finance</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
-</head>
-<body class="bg-gray-100">
-    <div class="container mx-auto p-6">
-        <!-- Header -->
-        <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
-            <div class="flex justify-between items-center">
+﻿@extends($portalLayout ?? 'layouts.accountant')
+
+@section('title', 'Invoices — Darasa Finance')
+@section('page_title', 'Invoices')
+
+@section('content')
+    <div class="space-y-6">
+        <div class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <div>
-                    <h1 class="text-3xl font-bold text-purple-600">📄 Download Student Invoices</h1>
-                    <p class="text-gray-600 mt-2">Generate and download fee statements for parents</p>
+                    <h2 class="text-xl font-semibold text-slate-900">Download student invoices</h2>
+                    <p class="mt-1 text-sm text-slate-600">Generate and download fee statements for parents.</p>
                 </div>
-                <a href="{{ route('accountant.dashboard') }}" class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded transition">
-                    ← Back to Dashboard
+                @if(empty($readOnly))
+                <a href="{{ route('accountant.dashboard') }}" class="inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+                    Back to dashboard
                 </a>
+                @endif
             </div>
         </div>
 
-        <!-- Selection Options -->
-        <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
-            <h2 class="text-2xl font-bold text-gray-700 mb-4">Select Students</h2>
+        <div class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h3 class="mb-4 text-lg font-semibold text-slate-900">Select students</h3>
 
-            <!-- Quick Options -->
-            <div class="grid grid-cols-3 gap-4 mb-6">
-                <button onclick="showAllStudentsInvoices()" class="bg-purple-500 hover:bg-purple-600 text-white px-6 py-4 rounded-lg text-lg font-bold transition">
-                    📥 Download All Students
+            <div class="mb-6 grid grid-cols-1 gap-3 md:grid-cols-3">
+                <button type="button" onclick="showAllStudentsInvoices()" class="rounded-lg bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700">
+                    Download all students
                 </button>
-                <button onclick="showClassSelection()" class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-4 rounded-lg text-lg font-bold transition">
-                    🎓 Select by Class
+                <button type="button" onclick="showClassSelection()" class="rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-800 hover:bg-slate-50">
+                    By class
                 </button>
-                <button onclick="showStudentSearch()" class="bg-green-500 hover:bg-green-600 text-white px-6 py-4 rounded-lg text-lg font-bold transition">
-                    🔍 Select Specific Student
+                <button type="button" onclick="showStudentSearch()" class="rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-800 hover:bg-slate-50">
+                    Search student
                 </button>
             </div>
 
-            <!-- Class Selection Area -->
             <div id="classSelectionArea" class="hidden">
-                <h3 class="text-xl font-bold text-gray-700 mb-4">Select Classes:</h3>
-                <div class="flex gap-3 mb-4">
-                    <button onclick="selectAllClasses()" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded">
-                        ✅ Select All
-                    </button>
-                    <button onclick="deselectAllClasses()" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded">
-                        ❌ Deselect All
-                    </button>
-                    <button onclick="downloadSelectedClassInvoices()" class="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded font-bold">
-                        📥 Download Invoices
-                    </button>
+                <h3 class="mb-3 text-base font-semibold text-slate-900">Select classes</h3>
+                <div class="mb-4 flex flex-wrap gap-2">
+                    <button type="button" onclick="selectAllClasses()" class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Select all</button>
+                    <button type="button" onclick="deselectAllClasses()" class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Deselect all</button>
+                    <button type="button" onclick="downloadSelectedClassInvoices()" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">Download</button>
                 </div>
-                <div id="classList" class="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    <!-- Classes will be loaded here -->
-                </div>
+                <div id="classList" class="grid grid-cols-2 gap-3 md:grid-cols-4"></div>
             </div>
 
-            <!-- Student Search Area -->
             <div id="studentSearchArea" class="hidden">
-                <h3 class="text-xl font-bold text-gray-700 mb-4">Search for Student:</h3>
-                <div class="flex gap-3 mb-4">
-                    <input type="text" id="studentSearchInput" placeholder="Enter student name or ID..."
-                        class="flex-1 border-2 border-gray-300 rounded px-4 py-2"
+                <h3 class="mb-3 text-base font-semibold text-slate-900">Search student</h3>
+                <div class="mb-4 flex flex-col gap-2 sm:flex-row">
+                    <input type="text" id="studentSearchInput" placeholder="Name or registration number…"
+                        class="min-w-0 flex-1 rounded-lg border border-slate-200 px-4 py-2 text-sm focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200"
                         onkeyup="searchStudents()">
-                    <button onclick="downloadSelectedStudent()" class="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded font-bold">
-                        📥 Download Invoice
+                    <button type="button" onclick="downloadSelectedStudent()" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">
+                        Download PDF
                     </button>
                 </div>
-                <div id="studentSearchResults" class="max-h-96 overflow-y-auto">
-                    <!-- Search results will appear here -->
-                </div>
+                <div id="studentSearchResults" class="max-h-96 overflow-y-auto rounded-lg border border-slate-100"></div>
             </div>
         </div>
 
-        <!-- Preview Information -->
-        <div class="bg-blue-50 border-2 border-blue-300 rounded-lg p-6">
-            <h3 class="text-xl font-bold text-blue-700 mb-3">📋 Invoice Format</h3>
-            <p class="text-gray-700 mb-2">Each invoice will be printed on a separate page and will include:</p>
-            <ul class="list-disc list-inside text-gray-700 space-y-1 ml-4">
-                <li>Student name and class</li>
-                <li>List of all fees with amounts</li>
-                <li>Total fees assigned</li>
-                <li>Amount already paid</li>
-                <li>Balance remaining (in parent-friendly language)</li>
-                <li>Payment deadlines (if applicable)</li>
-            </ul>
+        <div class="rounded-xl border border-slate-200 bg-slate-50 p-5 text-sm text-slate-700">
+            <h3 class="font-semibold text-slate-900">Invoice contents</h3>
+            <p class="mt-2">Each PDF keeps one student’s full statement together on its own page (header, fees, balance, bank details). Class filters now apply to bulk downloads.</p>
         </div>
     </div>
+@endsection
 
+@push('scripts')
     <script>
         const API_BASE = '/api';
+        const INVOICE_PDF_BASE = @json($invoicePdfBase ?? '/accountant/invoices');
         let allStudents = [];
         let allClasses = [];
         let selectedStudentId = null;
 
-        // Load initial data
+        axios.defaults.headers.common['X-CSRF-TOKEN'] = document.querySelector('meta[name="csrf-token"]').content;
+        axios.defaults.headers.common['Accept'] = 'application/json';
+        axios.defaults.withCredentials = true;
+
         async function loadInitialData() {
             try {
                 const [studentsResponse, classesResponse] = await Promise.all([
@@ -112,10 +92,10 @@
         }
 
         function showAllStudentsInvoices() {
-            const url = '/accountant/invoices/all-students/pdf';
+            const url = `${INVOICE_PDF_BASE}/all-students/pdf`;
             const newWindow = window.open(url, '_blank');
             if (!newWindow || newWindow.closed || typeof newWindow.closed == 'undefined') {
-                alert('Pop-up blocked! Please allow pop-ups for this site to download invoices.');
+                alert('Pop-up blocked. Allow pop-ups for this site to download invoices.');
             }
         }
 
@@ -127,12 +107,12 @@
             allClasses.forEach(cls => {
                 const studentCount = allStudents.filter(s => s.class_id == cls.id).length;
                 html += `
-                    <div class="bg-gray-50 border-2 border-gray-300 rounded-lg p-3 hover:bg-purple-50 hover:border-purple-400 transition">
-                        <label class="flex items-center cursor-pointer">
-                            <input type="checkbox" class="class-checkbox w-5 h-5 mr-2" value="${cls.id}" data-class-name="${cls.name}">
+                    <div class="rounded-lg border border-slate-200 bg-white p-3 hover:border-slate-300">
+                        <label class="flex cursor-pointer items-center gap-2">
+                            <input type="checkbox" class="class-checkbox h-4 w-4 rounded border-slate-300" value="${cls.id}" data-class-name="${cls.name}">
                             <div>
-                                <p class="font-bold">${cls.name}</p>
-                                <p class="text-xs text-gray-500">${studentCount} students</p>
+                                <p class="text-sm font-semibold text-slate-900">${cls.name}</p>
+                                <p class="text-xs text-slate-500">${studentCount} students</p>
                             </div>
                         </label>
                     </div>
@@ -161,23 +141,23 @@
             });
 
             if (selectedClasses.length === 0) {
-                alert('⚠️ Please select at least one class');
+                alert('Please select at least one class.');
                 return;
             }
 
             let url;
             if (selectedClasses.length === allClasses.length) {
-                url = '/accountant/invoices/all-students/pdf';
+                url = `${INVOICE_PDF_BASE}/all-students/pdf`;
             } else if (selectedClasses.length === 1) {
-                url = `/accountant/invoices/all-students/pdf?class=${encodeURIComponent(selectedClasses[0])}`;
+                url = `${INVOICE_PDF_BASE}/all-students/pdf?class=${encodeURIComponent(selectedClasses[0])}`;
             } else {
                 const classesParam = selectedClasses.map(c => `classes[]=${encodeURIComponent(c)}`).join('&');
-                url = `/accountant/invoices/all-students/pdf?${classesParam}`;
+                url = `${INVOICE_PDF_BASE}/all-students/pdf?${classesParam}`;
             }
 
             const newWindow = window.open(url, '_blank');
             if (!newWindow || newWindow.closed || typeof newWindow.closed == 'undefined') {
-                alert('Pop-up blocked! Please allow pop-ups for this site to download invoices.');
+                alert('Pop-up blocked. Allow pop-ups for this site to download invoices.');
             }
         }
 
@@ -190,17 +170,18 @@
 
             let html = '';
             filtered.slice(0, 20).forEach(student => {
+                const safeName = String(student.name).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
                 html += `
-                    <div onclick="selectStudentForInvoice(${student.id}, '${student.name}')"
-                        class="p-3 border-b hover:bg-purple-50 cursor-pointer">
-                        <p class="font-bold">${student.name}</p>
-                        <p class="text-sm text-gray-600">${student.student_reg_no} - ${student.class}</p>
+                    <div onclick="selectStudentForInvoice(${student.id}, '${safeName}')"
+                        class="cursor-pointer border-b border-slate-100 p-3 hover:bg-slate-50">
+                        <p class="text-sm font-semibold text-slate-900">${student.name}</p>
+                        <p class="text-xs text-slate-500">${student.student_reg_no} · ${student.class}</p>
                     </div>
                 `;
             });
 
             if (filtered.length === 0) {
-                html = '<p class="p-4 text-center text-gray-500">No students found</p>';
+                html = '<p class="p-4 text-center text-sm text-slate-500">No students found</p>';
             }
 
             document.getElementById('studentSearchResults').innerHTML = html;
@@ -210,23 +191,21 @@
             selectedStudentId = studentId;
             document.getElementById('studentSearchInput').value = studentName;
             document.getElementById('studentSearchResults').innerHTML =
-                `<div class="p-4 bg-green-50 border border-green-300 rounded">Selected: <strong>${studentName}</strong></div>`;
+                `<div class="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-800">Selected: <strong>${studentName}</strong></div>`;
         }
 
         function downloadSelectedStudent() {
             if (!selectedStudentId) {
-                alert('⚠️ Please search and select a student first');
+                alert('Please search and select a student first.');
                 return;
             }
-            const url = `/accountant/invoices/student/${selectedStudentId}/pdf`;
+            const url = `${INVOICE_PDF_BASE}/student/${selectedStudentId}/pdf`;
             const newWindow = window.open(url, '_blank');
             if (!newWindow || newWindow.closed || typeof newWindow.closed == 'undefined') {
-                alert('Pop-up blocked! Please allow pop-ups for this site to download invoices.');
+                alert('Pop-up blocked. Allow pop-ups for this site to download invoices.');
             }
         }
 
-        // Load data on page load
         loadInitialData();
     </script>
-</body>
-</html>
+@endpush

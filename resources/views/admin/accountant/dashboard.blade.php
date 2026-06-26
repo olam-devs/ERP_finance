@@ -1,12 +1,13 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>Dashboard - Darasa Finance</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+﻿@extends('layouts.accountant')
+
+@section('title', 'Dashboard — Darasa Finance')
+@section('page_title', 'Dashboard')
+
+@section('topbar_actions')
+    <span class="hidden text-xs text-slate-500 sm:inline">{{ \Carbon\Carbon::now()->format('l, M j, Y') }}</span>
+@endsection
+
+@push('head')
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <style>
@@ -21,22 +22,19 @@
             background-size: 1000px 100%;
         }
 
-        /* Smooth transitions */
         .fade-in {
-            animation: fadeIn 0.5s ease-in;
+            animation: fadeIn 0.35s ease-out;
         }
         @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
+            from { opacity: 0; }
+            to { opacity: 1; }
         }
 
-        /* Card hover effects */
         .hover-lift {
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: box-shadow 0.2s ease, border-color 0.2s ease;
         }
         .hover-lift:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            box-shadow: 0 10px 15px -3px rgba(15, 23, 42, 0.08), 0 4px 6px -4px rgba(15, 23, 42, 0.06);
         }
 
         /* Hide scrollbar but keep functionality */
@@ -48,217 +46,26 @@
             scrollbar-width: none;
         }
     </style>
-</head>
-<body class="bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen">
-    <!-- Sidebar -->
-    <div id="sidebar" class="fixed left-0 top-0 h-full w-72 bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 shadow-2xl transform -translate-x-full transition-transform duration-300 z-50 overflow-y-auto">
-        <!-- Sidebar Header -->
-        <div class="bg-gradient-to-r from-blue-600 to-indigo-600 p-6">
-            <div class="flex justify-between items-center mb-2">
-                <div class="flex items-center gap-3">
-                    <div class="bg-white p-2 rounded-lg">
-                        <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
-                        </svg>
-                    </div>
-                    <div>
-                        <h2 class="text-lg font-bold text-white">Darasa ERP</h2>
-                        <p class="text-xs text-blue-100">Navigation Menu</p>
-                    </div>
-                </div>
-                <button onclick="toggleSidebar()" class="text-white hover:bg-white hover:bg-opacity-20 p-1 rounded transition">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                    </svg>
-                </button>
-            </div>
-        </div>
+@endpush
 
-        <!-- Sidebar Content -->
-        <div class="p-4">
-            <!-- Sidebar Categories -->
-            <nav class="space-y-1">
-                <!-- Dashboard -->
-                <div class="sidebar-item mb-3">
-                    <a href="{{ route('accountant.dashboard') }}" class="flex items-center gap-3 px-4 py-3 rounded-lg bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg hover:shadow-xl transition-all transform hover:scale-105">
-                        <span class="text-xl">🏠</span>
-                        <span class="font-semibold">Dashboard</span>
-                    </a>
-                </div>
-
-                <!-- Finance Management -->
-                <div class="sidebar-category">
-                    <button onclick="toggleCategory('finance')" class="w-full flex items-center justify-between px-4 py-3 rounded-lg bg-slate-700 hover:bg-slate-600 text-white transition">
-                        <div class="flex items-center gap-3">
-                            <span class="text-xl">💰</span>
-                            <span class="font-semibold">Finance</span>
-                        </div>
-                        <svg class="w-4 h-4 transform transition-transform" id="finance-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                        </svg>
-                    </button>
-                    <div id="finance-submenu" class="ml-6 mt-1 space-y-1 hidden">
-                        <a href="{{ route('accountant.fee-entry') }}" class="block px-4 py-2 text-sm text-gray-300 hover:text-blue-400 hover:bg-slate-700 rounded transition">Fee Entry</a>
-                        <a href="{{ route('accountant.ledgers') }}" class="block px-4 py-2 text-sm text-gray-300 hover:text-blue-400 hover:bg-slate-700 rounded transition">Ledgers</a>
-                        <a href="{{ route('accountant.particular-ledger') }}" class="block px-4 py-2 text-sm text-gray-300 hover:text-blue-400 hover:bg-slate-700 rounded transition">Particular Ledger</a>
-                        <a href="{{ route('accountant.overdue') }}" class="block px-4 py-2 text-sm text-gray-300 hover:text-blue-400 hover:bg-slate-700 rounded transition">Overdue Payments</a>
-                        <a href="{{ route('accountant.suspense') }}" class="block px-4 py-2 text-sm text-gray-300 hover:text-blue-400 hover:bg-slate-700 rounded transition">Suspense Accounts</a>
-                    </div>
-                </div>
-
-                <!-- Books & Accounting -->
-                <div class="sidebar-category">
-                    <button onclick="toggleCategory('books')" class="w-full flex items-center justify-between px-4 py-3 rounded-lg bg-slate-700 hover:bg-slate-600 text-white transition">
-                        <div class="flex items-center gap-3">
-                            <span class="text-xl">📚</span>
-                            <span class="font-semibold">Books & Accounting</span>
-                        </div>
-                        <svg class="w-4 h-4 transform transition-transform" id="books-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                        </svg>
-                    </button>
-                    <div id="books-submenu" class="ml-6 mt-1 space-y-1 hidden">
-                        <a href="{{ route('accountant.books') }}" class="block px-4 py-2 text-sm text-gray-300 hover:text-blue-400 hover:bg-slate-700 rounded transition">Books Management</a>
-                        <a href="{{ route('accountant.particulars') }}" class="block px-4 py-2 text-sm text-gray-300 hover:text-blue-400 hover:bg-slate-700 rounded transition">Particulars</a>
-                    </div>
-                </div>
-
-                <!-- Expenses & Payroll -->
-                <div class="sidebar-category">
-                    <button onclick="toggleCategory('expenses')" class="w-full flex items-center justify-between px-4 py-3 rounded-lg bg-slate-700 hover:bg-slate-600 text-white transition">
-                        <div class="flex items-center gap-3">
-                            <span class="text-xl">💳</span>
-                            <span class="font-semibold">Expenses & Payroll</span>
-                        </div>
-                        <svg class="w-4 h-4 transform transition-transform" id="expenses-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                        </svg>
-                    </button>
-                    <div id="expenses-submenu" class="ml-6 mt-1 space-y-1 hidden">
-                        <a href="{{ route('accountant.payroll') }}" class="block px-4 py-2 text-sm text-gray-300 hover:text-blue-400 hover:bg-slate-700 rounded transition">Payroll</a>
-                        <a href="{{ route('accountant.expenses') }}" class="block px-4 py-2 text-sm text-gray-300 hover:text-blue-400 hover:bg-slate-700 rounded transition">Expenses</a>
-                    </div>
-                </div>
-
-                <!-- Student Management -->
-                <div class="sidebar-category">
-                    <button onclick="toggleCategory('students')" class="w-full flex items-center justify-between px-4 py-3 rounded-lg bg-slate-700 hover:bg-slate-600 text-white transition">
-                        <div class="flex items-center gap-3">
-                            <span class="text-xl">👨‍🎓</span>
-                            <span class="font-semibold">Students</span>
-                        </div>
-                        <svg class="w-4 h-4 transform transition-transform" id="students-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                        </svg>
-                    </button>
-                    <div id="students-submenu" class="ml-6 mt-1 space-y-1 hidden">
-                        <a href="{{ route('accountant.students') }}" class="block px-4 py-2 text-sm text-gray-300 hover:text-blue-400 hover:bg-slate-700 rounded transition">Student Management</a>
-                        <a href="{{ route('accountant.classes') }}" class="block px-4 py-2 text-sm text-gray-300 hover:text-blue-400 hover:bg-slate-700 rounded transition">Class Management</a>
-                        <a href="{{ route('students.promotion-page') }}" class="block px-4 py-2 text-sm text-gray-300 hover:text-blue-400 hover:bg-slate-700 rounded transition">Student Promotion</a>
-                        <a href="{{ route('accountant.invoices-page') }}" class="block px-4 py-2 text-sm text-gray-300 hover:text-blue-400 hover:bg-slate-700 rounded transition">Student Invoices</a>
-                    </div>
-                </div>
-
-                <!-- Communication -->
-                <div class="sidebar-category">
-                    <button onclick="toggleCategory('communication')" class="w-full flex items-center justify-between px-4 py-3 rounded-lg bg-slate-700 hover:bg-slate-600 text-white transition">
-                        <div class="flex items-center gap-3">
-                            <span class="text-xl">📱</span>
-                            <span class="font-semibold">Communication</span>
-                        </div>
-                        <svg class="w-4 h-4 transform transition-transform" id="communication-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                        </svg>
-                    </button>
-                    <div id="communication-submenu" class="ml-6 mt-1 space-y-1 hidden">
-                        <a href="{{ route('accountant.sms') }}" class="block px-4 py-2 text-sm text-gray-300 hover:text-blue-400 hover:bg-slate-700 rounded transition">Send SMS</a>
-                        <a href="{{ route('accountant.phone-numbers') }}" class="block px-4 py-2 text-sm text-gray-300 hover:text-blue-400 hover:bg-slate-700 rounded transition">Phone Numbers</a>
-                        <a href="{{ route('accountant.sms-logs') }}" class="block px-4 py-2 text-sm text-gray-300 hover:text-blue-400 hover:bg-slate-700 rounded transition">SMS Logs</a>
-                    </div>
-                </div>
-
-                <!-- Integrations -->
-                <div class="sidebar-item mt-2">
-                    <a href="{{ route('accountant.bank-api') }}" class="flex items-center gap-3 px-4 py-3 rounded-lg bg-gradient-to-r from-green-600 to-emerald-600 text-white hover:from-green-500 hover:to-emerald-500 shadow-md transition-all">
-                        <span class="text-xl">🏦</span>
-                        <span class="font-semibold">Bank Integration</span>
-                    </a>
-                </div>
-
-                <!-- Settings -->
-                <div class="sidebar-item">
-                    <a href="{{ route('accountant.settings') }}" class="flex items-center gap-3 px-4 py-3 rounded-lg bg-slate-700 hover:bg-slate-600 text-gray-300 hover:text-white transition">
-                        <span class="text-xl">⚙️</span>
-                        <span class="font-semibold">Settings</span>
-                    </a>
-                </div>
-            </nav>
-        </div>
-    </div>
-
-    <!-- Sidebar Overlay -->
-    <div id="sidebar-overlay" class="fixed inset-0 bg-black bg-opacity-50 hidden z-40" onclick="toggleSidebar()"></div>
-
-    <!-- Top Header -->
-    <nav class="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white shadow-2xl sticky top-0 z-50">
-        <div class="container mx-auto px-4 py-4">
-            <div class="flex flex-col md:flex-row md:justify-between md:items-center gap-3">
-                <div class="flex items-center gap-3">
-                    <!-- Menu Button -->
-                    <button onclick="toggleSidebar()" class="bg-white bg-opacity-20 hover:bg-opacity-30 p-2 rounded-lg transition">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
-                        </svg>
-                    </button>
-                    <!-- Clickable Logo and Title -->
-                    <a href="{{ route('accountant.dashboard') }}" class="flex items-center gap-3 hover:opacity-90 transition">
-                        @if($settings->logo_path && file_exists(public_path('storage/' . $settings->logo_path)))
-                            <img src="{{ asset('storage/' . $settings->logo_path) }}" alt="School Logo" class="w-12 h-12 md:w-16 md:h-16 rounded-lg bg-white p-1 object-contain">
-                        @else
-                            <div class="bg-white bg-opacity-20 p-2 rounded-lg">
-                                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
-                                </svg>
-                            </div>
-                        @endif
-                        <div>
-                            <h1 class="text-2xl md:text-3xl font-bold">{{ $settings->school_name ?? 'Darasa Finance ERP' }}</h1>
-                            <p class="text-xs md:text-sm text-blue-100">Financial Management System</p>
-                        </div>
-                    </a>
-                </div>
-                <div class="flex flex-col md:flex-row gap-2 md:gap-4 items-start md:items-center">
-                    <div class="text-xs md:text-sm bg-white bg-opacity-20 px-3 py-1.5 rounded-lg">
-                        <span class="hidden md:inline">📅 </span>{{ \Carbon\Carbon::now()->format('l, F j, Y') }}
-                    </div>
-                    <div class="text-xs md:text-sm bg-white bg-opacity-20 px-3 py-1.5 rounded-lg">
-                        👤 Accountant
-                    </div>
-                    <form method="POST" action="{{ route('logout') }}">
-                        @csrf
-                        <button type="submit" class="bg-red-500 hover:bg-red-600 px-4 py-2 rounded-lg transition shadow-lg text-sm md:text-base font-semibold">
-                            Logout
-                        </button>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </nav>
-
-    <div class="container mx-auto px-3 md:px-6 py-6 md:py-8">
-        <!-- Welcome Banner -->
-        <div class="bg-gradient-to-r from-blue-500 to-purple-600 rounded-2xl shadow-2xl p-6 md:p-8 mb-6 md:mb-8 text-white fade-in">
-            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+@section('content')
+    <div class="space-y-8">
+        <!-- Welcome -->
+        <div class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm fade-in">
+            <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <div>
-                    <h2 class="text-2xl md:text-3xl font-bold mb-2">Welcome Back! 👋</h2>
-                    <p class="text-blue-100 text-sm md:text-base">Here's what's happening with your school finances today.</p>
+                    <h2 class="text-xl font-semibold text-slate-900 md:text-2xl">Overview</h2>
+                    <p class="mt-1 text-sm text-slate-600">School finance snapshot and quick entry points.</p>
                 </div>
-                <div class="flex gap-2 md:gap-3 flex-wrap">
-                    <button onclick="window.location.reload()" class="bg-white bg-opacity-20 hover:bg-opacity-30 px-4 py-2 rounded-lg transition text-sm md:text-base">
-                        🔄 Refresh
+                <div class="flex flex-wrap gap-2">
+                    <button type="button" onclick="window.location.reload()"
+                        class="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                        Refresh
                     </button>
-                    <a href="{{ route('accountant.fee-entry') }}" class="bg-yellow-400 hover:bg-yellow-500 text-gray-900 px-4 py-2 rounded-lg transition font-bold text-sm md:text-base">
-                        + New Entry
+                    <a href="{{ route('accountant.fee-entry') }}"
+                        class="inline-flex items-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">
+                        New fee entry
                     </a>
                 </div>
             </div>
@@ -266,51 +73,51 @@
 
         <!-- Advanced Analytics Section -->
         <div class="fade-in mb-6 md:mb-10">
-            <div class="flex items-center gap-3 mb-4 md:mb-6">
-                <div class="bg-gradient-to-r from-green-500 to-emerald-500 p-2 md:p-3 rounded-xl shadow-lg">
-                    <svg class="w-5 h-5 md:w-6 md:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div class="mb-4 flex items-center gap-3 md:mb-6">
+                <div class="flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-700">
+                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
                     </svg>
                 </div>
-                <h2 class="text-2xl md:text-3xl font-bold text-gray-800">Advanced Analytics & Reports</h2>
+                <h2 class="text-lg font-semibold text-slate-900 md:text-xl">Analytics and reports</h2>
             </div>
 
             <!-- Time Period Selector -->
-            <div class="flex flex-wrap gap-2 md:gap-3 mb-4 md:mb-6">
-                <button onclick="loadAnalytics('today')" id="btn-today" class="analytics-btn px-4 md:px-6 py-2 md:py-3 rounded-lg bg-blue-500 text-white hover:bg-blue-600 transition font-semibold text-sm md:text-base shadow-md">
+            <div class="mb-4 flex flex-wrap gap-2 md:mb-6 md:gap-3">
+                <button type="button" onclick="loadAnalytics('today')" id="btn-today" class="analytics-btn rounded-lg border border-blue-700 bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 md:px-6 md:py-3 md:text-base">
                     Today
                 </button>
-                <button onclick="loadAnalytics('weekly')" id="btn-weekly" class="analytics-btn px-4 md:px-6 py-2 md:py-3 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 transition font-semibold text-sm md:text-base shadow-md">
+                <button type="button" onclick="loadAnalytics('weekly')" id="btn-weekly" class="analytics-btn rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 md:px-6 md:py-3 md:text-base">
                     This Week
                 </button>
-                <button onclick="loadAnalytics('monthly')" id="btn-monthly" class="analytics-btn px-4 md:px-6 py-2 md:py-3 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 transition font-semibold text-sm md:text-base shadow-md">
+                <button type="button" onclick="loadAnalytics('monthly')" id="btn-monthly" class="analytics-btn rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 md:px-6 md:py-3 md:text-base">
                     This Month
                 </button>
-                <button onclick="loadAnalytics('yearly')" id="btn-yearly" class="analytics-btn px-4 md:px-6 py-2 md:py-3 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 transition font-semibold text-sm md:text-base shadow-md">
+                <button type="button" onclick="loadAnalytics('yearly')" id="btn-yearly" class="analytics-btn rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 md:px-6 md:py-3 md:text-base">
                     This Year
                 </button>
-                <button onclick="showCustomDatePicker()" id="btn-custom" class="analytics-btn px-4 md:px-6 py-2 md:py-3 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 transition font-semibold text-sm md:text-base shadow-md">
+                <button type="button" onclick="showCustomDatePicker()" id="btn-custom" class="analytics-btn rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 md:px-6 md:py-3 md:text-base">
                     Custom Date
                 </button>
             </div>
 
             <!-- Custom Date Range Picker (Initially Hidden) -->
-            <div id="custom-date-picker" class="hidden mb-4 md:mb-6 bg-white p-4 rounded-lg shadow-md">
-                <h3 class="text-lg font-bold text-gray-800 mb-3">Select Custom Date Range</h3>
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div id="custom-date-picker" class="mb-4 hidden rounded-xl border border-slate-200 bg-white p-4 shadow-sm md:mb-6">
+                <h3 class="mb-3 text-base font-semibold text-slate-900">Custom date range</h3>
+                <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">From Date</label>
-                        <input type="text" id="custom-from-date" class="w-full border-2 border-gray-300 rounded-lg px-3 py-2" placeholder="Select start date">
+                        <label class="mb-2 block text-sm font-medium text-slate-600">From date</label>
+                        <input type="text" id="custom-from-date" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" placeholder="Start date">
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">To Date</label>
-                        <input type="text" id="custom-to-date" class="w-full border-2 border-gray-300 rounded-lg px-3 py-2" placeholder="Select end date">
+                        <label class="mb-2 block text-sm font-medium text-slate-600">To date</label>
+                        <input type="text" id="custom-to-date" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" placeholder="End date">
                     </div>
                     <div class="flex items-end gap-2">
-                        <button onclick="applyCustomDateRange()" class="flex-1 bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg transition font-semibold">
+                        <button type="button" onclick="applyCustomDateRange()" class="flex-1 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700">
                             Apply
                         </button>
-                        <button onclick="hideCustomDatePicker()" class="flex-1 bg-gray-400 hover:bg-gray-500 text-white px-4 py-2 rounded-lg transition font-semibold">
+                        <button type="button" onclick="hideCustomDatePicker()" class="flex-1 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
                             Cancel
                         </button>
                     </div>
@@ -318,8 +125,9 @@
             </div>
 
             <!-- Analytics Summary Cards -->
-            <div id="analytics-cards" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6 mb-6">
+            <div id="analytics-cards" class="mb-6 grid grid-cols-1 gap-3 min-[500px]:grid-cols-2 xl:grid-cols-5 md:gap-4">
                 <!-- Skeleton loaders will be replaced -->
+                <div class="skeleton rounded-xl h-32 md:h-36"></div>
                 <div class="skeleton rounded-xl h-32 md:h-36"></div>
                 <div class="skeleton rounded-xl h-32 md:h-36"></div>
                 <div class="skeleton rounded-xl h-32 md:h-36"></div>
@@ -327,15 +135,15 @@
             </div>
 
             <!-- Charts Row: Line Graph and Books Pie Chart -->
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 mb-6">
-                <div class="bg-white rounded-xl shadow-lg p-4 md:p-6">
-                    <h3 class="text-base md:text-lg font-bold text-gray-800 mb-4">Fee Collection Trend</h3>
+            <div class="mb-6 grid grid-cols-1 gap-4 md:gap-6 lg:grid-cols-2">
+                <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm md:p-6">
+                    <h3 class="mb-4 text-base font-semibold text-slate-900 md:text-lg">Fee collection trend</h3>
                     <div id="chart-container-1" class="relative" style="height: 250px;">
                         <canvas id="collectionChart"></canvas>
                     </div>
                 </div>
-                <div class="bg-white rounded-xl shadow-lg p-4 md:p-6">
-                    <h3 class="text-base md:text-lg font-bold text-gray-800 mb-4">Books Distribution (Fee Collections)</h3>
+                <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm md:p-6">
+                    <h3 class="mb-4 text-base font-semibold text-slate-900 md:text-lg">Books distribution (collections)</h3>
                     <div id="chart-container-2" class="relative" style="height: 250px;">
                         <canvas id="paymentMethodsChart"></canvas>
                     </div>
@@ -344,9 +152,9 @@
             </div>
 
             <!-- Particulars Bar Graph: Expected vs Collected -->
-            <div class="bg-white rounded-xl shadow-lg p-4 md:p-6 mb-6">
-                <div class="flex justify-between items-center mb-4">
-                    <h3 class="text-lg md:text-xl font-bold text-gray-800">Fee Collection by Particular (Expected vs Collected)</h3>
+            <div class="mb-6 rounded-xl border border-slate-200 bg-white p-4 shadow-sm md:p-6">
+                <div class="mb-4 flex items-center justify-between gap-3">
+                    <h3 class="text-lg font-semibold text-slate-900 md:text-xl">Fees by particular (expected vs collected)</h3>
                     <div class="flex gap-2">
                         <label class="flex items-center gap-2">
                             <input type="checkbox" id="select-all-particulars" onchange="toggleAllParticulars()" checked>
@@ -363,49 +171,51 @@
             </div>
 
             <!-- Student Completion Summary -->
-            <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
-                <h3 class="text-xl font-bold text-gray-800 mb-4">Student Payment Completion Status</h3>
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                    <div class="bg-blue-50 p-4 rounded-lg">
-                        <p class="text-sm text-gray-600">Total Students</p>
-                        <p class="text-2xl font-bold text-blue-600" id="total-students">0</p>
+            <div class="mb-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+                <h3 class="mb-4 text-xl font-semibold text-slate-900">Student payment completion</h3>
+                <div class="mb-6 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+                    <div class="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                        <p class="text-sm text-slate-600">Total students</p>
+                        <p class="text-2xl font-semibold tabular-nums text-slate-900" id="total-students">0</p>
                     </div>
-                    <div class="bg-green-50 p-4 rounded-lg">
-                        <p class="text-sm text-gray-600">Completed Payments</p>
-                        <p class="text-2xl font-bold text-green-600" id="completed-students">0</p>
+                    <div class="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                        <p class="text-sm text-slate-600">Completed</p>
+                        <p class="text-2xl font-semibold tabular-nums text-slate-900" id="completed-students">0</p>
                     </div>
-                    <div class="bg-red-50 p-4 rounded-lg">
-                        <p class="text-sm text-gray-600">Incomplete Payments</p>
-                        <p class="text-2xl font-bold text-red-600" id="incomplete-students">0</p>
+                    <div class="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                        <p class="text-sm text-slate-600">Incomplete</p>
+                        <p class="text-2xl font-semibold tabular-nums text-slate-900" id="incomplete-students">0</p>
                     </div>
-                    <div class="bg-purple-50 p-4 rounded-lg">
-                        <p class="text-sm text-gray-600">Completion Rate</p>
-                        <p class="text-2xl font-bold text-purple-600" id="completion-rate">0%</p>
+                    <div class="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                        <p class="text-sm text-slate-600">Completion rate</p>
+                        <p class="text-2xl font-semibold tabular-nums text-slate-900" id="completion-rate">0%</p>
                     </div>
                 </div>
 
                 <!-- Filters Row -->
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
                     <div>
                         <label class="block text-sm font-semibold text-gray-700 mb-2">Filter by Class</label>
                         <select id="class-filter" class="px-4 py-2 border border-gray-300 rounded-lg w-full" onchange="filterClassStats()">
                             <option value="">All Classes</option>
-                            <option value="Grade 1">Grade 1</option>
-                            <option value="Grade 2">Grade 2</option>
-                            <option value="Grade 3">Grade 3</option>
-                            <option value="Grade 4">Grade 4</option>
-                            <option value="Grade 5">Grade 5</option>
-                            <option value="Grade 6">Grade 6</option>
-                            <option value="Form 1">Form 1</option>
-                            <option value="Form 2">Form 2</option>
-                            <option value="Form 3">Form 3</option>
-                            <option value="Form 4">Form 4</option>
                         </select>
                     </div>
                     <div class="relative">
                         <label class="block text-sm font-semibold text-gray-700 mb-2">Search Student</label>
                         <input type="text" id="student-search" placeholder="Search by name or registration number..." class="px-4 py-2 border border-gray-300 rounded-lg w-full" oninput="showAutocomplete()" autocomplete="off">
                         <div id="autocomplete-dropdown" class="hidden absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto"></div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Custom Date Range (Collected)</label>
+                        <div class="grid grid-cols-2 gap-2">
+                            <input type="text" id="status-from-date" placeholder="From (YYYY-MM-DD)" class="px-4 py-2 border border-gray-300 rounded-lg w-full">
+                            <input type="text" id="status-to-date" placeholder="To (YYYY-MM-DD)" class="px-4 py-2 border border-gray-300 rounded-lg w-full">
+                        </div>
+                        <div class="flex gap-2 mt-2">
+                            <button type="button" class="px-4 py-2 rounded-lg bg-blue-600 text-sm font-semibold text-white transition hover:bg-blue-700" onclick="applyStatusDateFilter()">Apply</button>
+                            <button type="button" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg font-semibold hover:bg-gray-300 transition" onclick="clearStatusDateFilter()">Clear</button>
+                        </div>
+                        <p class="text-xs text-gray-500 mt-2">Expected stays from assignments; Collected is filtered by receipts within the date range.</p>
                     </div>
                 </div>
 
@@ -430,244 +240,246 @@
             </div>
         </div>
 
-        <!-- Quick Actions Section -->
-        <div class="mb-6 md:mb-10 fade-in">
-            <div class="flex items-center gap-3 mb-4 md:mb-6">
-                <div class="bg-gradient-to-r from-purple-500 to-pink-500 p-2 md:p-3 rounded-xl shadow-lg">
-                    <svg class="w-5 h-5 md:w-6 md:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <!-- Quick Actions -->
+        <div class="fade-in">
+            <div class="mb-4 flex items-center gap-3 md:mb-6">
+                <div class="flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-700">
+                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
                     </svg>
                 </div>
-                <h2 class="text-2xl md:text-3xl font-bold text-gray-800">Quick Actions</h2>
+                <h2 class="text-lg font-semibold text-slate-900 md:text-xl">Quick actions</h2>
             </div>
-            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4">
-                <a href="{{ route('accountant.fee-entry') }}" class="group bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl shadow-lg p-4 md:p-6 hover-lift text-white">
-                    <div class="text-3xl md:text-4xl mb-2 md:mb-3 transform group-hover:scale-110 transition">💰</div>
-                    <h3 class="font-bold text-sm md:text-base mb-1">Record Fee</h3>
-                    <p class="text-xs text-purple-100 hidden md:block">Create entries</p>
+            <div class="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4 lg:grid-cols-5">
+                <a href="{{ route('accountant.fee-entry') }}" class="rounded-xl border border-slate-200 bg-white p-4 hover-lift md:p-5">
+                    <div class="mb-3 flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
+                        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-3.866 0-7 1.343-7 3v2h14v-2c0-1.657-3.134-3-7-3z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10V8a7 7 0 0114 0v2"/></svg>
+                    </div>
+                    <h3 class="text-sm font-semibold text-slate-900 md:text-base">Record fee</h3>
+                    <p class="mt-0.5 hidden text-xs text-slate-500 md:block">New receipt</p>
                 </a>
-                <a href="{{ route('accountant.ledgers') }}" class="group bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg p-4 md:p-6 hover-lift text-white">
-                    <div class="text-3xl md:text-4xl mb-2 md:mb-3 transform group-hover:scale-110 transition">📊</div>
-                    <h3 class="font-bold text-sm md:text-base mb-1">View Ledgers</h3>
-                    <p class="text-xs text-blue-100 hidden md:block">Reports & stats</p>
+                <a href="{{ route('accountant.ledgers') }}" class="rounded-xl border border-slate-200 bg-white p-4 hover-lift md:p-5">
+                    <div class="mb-3 flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
+                        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                    </div>
+                    <h3 class="text-sm font-semibold text-slate-900 md:text-base">Ledgers</h3>
+                    <p class="mt-0.5 hidden text-xs text-slate-500 md:block">Reports</p>
                 </a>
-                <a href="{{ route('accountant.sms') }}" class="group bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-lg p-4 md:p-6 hover-lift text-white">
-                    <div class="text-3xl md:text-4xl mb-2 md:mb-3 transform group-hover:scale-110 transition">📱</div>
-                    <h3 class="font-bold text-sm md:text-base mb-1">Send SMS</h3>
-                    <p class="text-xs text-green-100 hidden md:block">Notify parents</p>
+                <a href="{{ route('accountant.sms') }}" class="rounded-xl border border-slate-200 bg-white p-4 hover-lift md:p-5">
+                    <div class="mb-3 flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
+                        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+                    </div>
+                    <h3 class="text-sm font-semibold text-slate-900 md:text-base">SMS</h3>
+                    <p class="mt-0.5 hidden text-xs text-slate-500 md:block">Messaging</p>
                 </a>
-                <a href="{{ route('accountant.overdue') }}" class="group bg-gradient-to-br from-red-500 to-red-600 rounded-xl shadow-lg p-4 md:p-6 hover-lift text-white">
-                    <div class="text-3xl md:text-4xl mb-2 md:mb-3 transform group-hover:scale-110 transition">💸</div>
-                    <h3 class="font-bold text-sm md:text-base mb-1">Overdues</h3>
-                    <p class="text-xs text-red-100 hidden md:block">Track payments</p>
+                <a href="{{ route('accountant.overdue') }}" class="rounded-xl border border-slate-200 bg-white p-4 hover-lift md:p-5">
+                    <div class="mb-3 flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
+                        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                    </div>
+                    <h3 class="text-sm font-semibold text-slate-900 md:text-base">Overdues</h3>
+                    <p class="mt-0.5 hidden text-xs text-slate-500 md:block">Follow-up</p>
                 </a>
-                <a href="{{ route('accountant.invoices-page') }}" class="group bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-xl shadow-lg p-4 md:p-6 hover-lift text-white">
-                    <div class="text-3xl md:text-4xl mb-2 md:mb-3 transform group-hover:scale-110 transition">📄</div>
-                    <h3 class="font-bold text-sm md:text-base mb-1">Invoices</h3>
-                    <p class="text-xs text-indigo-100 hidden md:block">Generate PDFs</p>
+                <a href="{{ route('accountant.invoices-page') }}" class="rounded-xl border border-slate-200 bg-white p-4 hover-lift md:p-5">
+                    <div class="mb-3 flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
+                        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                    </div>
+                    <h3 class="text-sm font-semibold text-slate-900 md:text-base">Invoices</h3>
+                    <p class="mt-0.5 hidden text-xs text-slate-500 md:block">PDFs</p>
                 </a>
             </div>
         </div>
 
-        <!-- System Modules Section -->
-        <div class="mb-6 md:mb-10 fade-in">
-            <div class="flex items-center gap-3 mb-4 md:mb-6">
-                <div class="bg-gradient-to-r from-blue-500 to-cyan-500 p-2 md:p-3 rounded-xl shadow-lg">
-                    <svg class="w-5 h-5 md:w-6 md:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <!-- System modules -->
+        <div class="fade-in">
+            <div class="mb-4 flex items-center gap-3 md:mb-6">
+                <div class="flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-700">
+                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path>
                     </svg>
                 </div>
-                <h2 class="text-2xl md:text-3xl font-bold text-gray-800">System Modules</h2>
+                <h2 class="text-lg font-semibold text-slate-900 md:text-xl">All modules</h2>
             </div>
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-5">
-                <!-- Books Management -->
-                <a href="{{ route('accountant.books') }}" class="bg-white rounded-xl shadow-md hover:shadow-2xl p-4 md:p-6 hover-lift border-l-4 border-blue-500">
-                    <div class="flex items-start gap-3 md:gap-4">
-                        <div class="text-3xl md:text-4xl">📚</div>
-                        <div class="flex-1">
-                            <h3 class="text-base md:text-lg font-bold text-blue-600 mb-1">Books Management</h3>
-                            <p class="text-xs md:text-sm text-gray-600">Manage account books</p>
+            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 md:gap-4">
+                <a href="{{ route('accountant.books') }}" class="hover-lift rounded-xl border border-slate-200 border-l-4 border-l-blue-500 bg-white p-4 md:p-5">
+                    <div class="flex gap-3">
+                        <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
+                            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+                        </div>
+                        <div>
+                            <h3 class="text-sm font-semibold text-slate-900 md:text-base">Books</h3>
+                            <p class="text-xs text-slate-500">Account books</p>
                         </div>
                     </div>
                 </a>
-
-                <!-- Particulars -->
-                <a href="{{ route('accountant.particulars') }}" class="bg-white rounded-xl shadow-md hover:shadow-2xl p-4 md:p-6 hover-lift border-l-4 border-green-500">
-                    <div class="flex items-start gap-3 md:gap-4">
-                        <div class="text-3xl md:text-4xl">📋</div>
-                        <div class="flex-1">
-                            <h3 class="text-base md:text-lg font-bold text-green-600 mb-1">Particulars</h3>
-                            <p class="text-xs md:text-sm text-gray-600">Manage fee types</p>
+                <a href="{{ route('accountant.particulars') }}" class="hover-lift rounded-xl border border-slate-200 border-l-4 border-l-emerald-500 bg-white p-4 md:p-5">
+                    <div class="flex gap-3">
+                        <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
+                            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+                        </div>
+                        <div>
+                            <h3 class="text-sm font-semibold text-slate-900 md:text-base">Particulars</h3>
+                            <p class="text-xs text-slate-500">Fee types</p>
                         </div>
                     </div>
                 </a>
-
-                <!-- Fee Entry -->
-                <a href="{{ route('accountant.fee-entry') }}" class="bg-white rounded-xl shadow-md hover:shadow-2xl p-4 md:p-6 hover-lift border-l-4 border-purple-500">
-                    <div class="flex items-start gap-3 md:gap-4">
-                        <div class="text-3xl md:text-4xl">💰</div>
-                        <div class="flex-1">
-                            <h3 class="text-base md:text-lg font-bold text-purple-600 mb-1">Fee Entry</h3>
-                            <p class="text-xs md:text-sm text-gray-600">Record transactions</p>
+                <a href="{{ route('accountant.fee-entry') }}" class="hover-lift rounded-xl border border-slate-200 border-l-4 border-l-violet-500 bg-white p-4 md:p-5">
+                    <div class="flex gap-3">
+                        <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
+                            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2z"/></svg>
+                        </div>
+                        <div>
+                            <h3 class="text-sm font-semibold text-slate-900 md:text-base">Fee entry</h3>
+                            <p class="text-xs text-slate-500">Receipts</p>
                         </div>
                     </div>
                 </a>
-
-                <!-- Ledgers -->
-                <a href="{{ route('accountant.ledgers') }}" class="bg-white rounded-xl shadow-md hover:shadow-2xl p-4 md:p-6 hover-lift border-l-4 border-orange-500">
-                    <div class="flex items-start gap-3 md:gap-4">
-                        <div class="text-3xl md:text-4xl">📊</div>
-                        <div class="flex-1">
-                            <h3 class="text-base md:text-lg font-bold text-orange-600 mb-1">Ledgers</h3>
-                            <p class="text-xs md:text-sm text-gray-600">Student & class reports</p>
+                <a href="{{ route('accountant.ledgers') }}" class="hover-lift rounded-xl border border-slate-200 border-l-4 border-l-orange-500 bg-white p-4 md:p-5">
+                    <div class="flex gap-3">
+                        <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
+                            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                        </div>
+                        <div>
+                            <h3 class="text-sm font-semibold text-slate-900 md:text-base">Ledgers</h3>
+                            <p class="text-xs text-slate-500">Class and student</p>
                         </div>
                     </div>
                 </a>
-
-                <!-- Particular Ledger -->
-                <a href="{{ route('accountant.particular-ledger') }}" class="bg-white rounded-xl shadow-md hover:shadow-2xl p-4 md:p-6 hover-lift border-l-4 border-teal-500">
-                    <div class="flex items-start gap-3 md:gap-4">
-                        <div class="text-3xl md:text-4xl">📋</div>
-                        <div class="flex-1">
-                            <h3 class="text-base md:text-lg font-bold text-teal-600 mb-1">Particular Ledger</h3>
-                            <p class="text-xs md:text-sm text-gray-600">Fee type reports</p>
+                <a href="{{ route('accountant.particular-ledger') }}" class="hover-lift rounded-xl border border-slate-200 border-l-4 border-l-blue-500 bg-white p-4 md:p-5">
+                    <div class="flex gap-3">
+                        <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
+                            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+                        </div>
+                        <div>
+                            <h3 class="text-sm font-semibold text-slate-900 md:text-base">Particular ledger</h3>
+                            <p class="text-xs text-slate-500">By fee type</p>
                         </div>
                     </div>
                 </a>
-
-                <!-- Overdue Payments -->
-                <a href="{{ route('accountant.overdue') }}" class="bg-white rounded-xl shadow-md hover:shadow-2xl p-4 md:p-6 hover-lift border-l-4 border-red-500">
-                    <div class="flex items-start gap-3 md:gap-4">
-                        <div class="text-3xl md:text-4xl">💸</div>
-                        <div class="flex-1">
-                            <h3 class="text-base md:text-lg font-bold text-red-600 mb-1">Overdue Payments</h3>
-                            <p class="text-xs md:text-sm text-gray-600">Track overdue fees</p>
+                <a href="{{ route('accountant.overdue') }}" class="hover-lift rounded-xl border border-slate-200 border-l-4 border-l-red-500 bg-white p-4 md:p-5">
+                    <div class="flex gap-3">
+                        <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
+                            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                        </div>
+                        <div>
+                            <h3 class="text-sm font-semibold text-slate-900 md:text-base">Overdue</h3>
+                            <p class="text-xs text-slate-500">Late fees</p>
                         </div>
                     </div>
                 </a>
-
-                <!-- Suspense Accounts -->
-                <a href="{{ route('accountant.suspense') }}" class="bg-white rounded-xl shadow-md hover:shadow-2xl p-4 md:p-6 hover-lift border-l-4 border-amber-500">
-                    <div class="flex items-start gap-3 md:gap-4">
-                        <div class="text-3xl md:text-4xl">⏳</div>
-                        <div class="flex-1">
-                            <h3 class="text-base md:text-lg font-bold text-amber-600 mb-1">Suspense Accounts</h3>
-                            <p class="text-xs md:text-sm text-gray-600">Unidentified transactions</p>
+                <a href="{{ route('accountant.suspense') }}" class="hover-lift rounded-xl border border-slate-200 border-l-4 border-l-amber-500 bg-white p-4 md:p-5">
+                    <div class="flex gap-3">
+                        <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
+                            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        </div>
+                        <div>
+                            <h3 class="text-sm font-semibold text-slate-900 md:text-base">Suspense</h3>
+                            <p class="text-xs text-slate-500">Unallocated</p>
                         </div>
                     </div>
                 </a>
-
-                <!-- Payroll -->
-                <a href="{{ route('accountant.payroll') }}" class="bg-white rounded-xl shadow-md hover:shadow-2xl p-4 md:p-6 hover-lift border-l-4 border-yellow-500">
-                    <div class="flex items-start gap-3 md:gap-4">
-                        <div class="text-3xl md:text-4xl">💵</div>
-                        <div class="flex-1">
-                            <h3 class="text-base md:text-lg font-bold text-yellow-600 mb-1">Payroll</h3>
-                            <p class="text-xs md:text-sm text-gray-600">Staff salary management</p>
+                <a href="{{ route('accountant.payroll') }}" class="hover-lift rounded-xl border border-slate-200 border-l-4 border-l-yellow-500 bg-white p-4 md:p-5">
+                    <div class="flex gap-3">
+                        <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
+                            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm8-9a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+                        </div>
+                        <div>
+                            <h3 class="text-sm font-semibold text-slate-900 md:text-base">Payroll</h3>
+                            <p class="text-xs text-slate-500">Staff pay</p>
                         </div>
                     </div>
                 </a>
-
-                <!-- Expenses -->
-                <a href="{{ route('accountant.expenses') }}" class="bg-white rounded-xl shadow-md hover:shadow-2xl p-4 md:p-6 hover-lift border-l-4 border-rose-500">
-                    <div class="flex items-start gap-3 md:gap-4">
-                        <div class="text-3xl md:text-4xl">💳</div>
-                        <div class="flex-1">
-                            <h3 class="text-base md:text-lg font-bold text-rose-600 mb-1">Expenses</h3>
-                            <p class="text-xs md:text-sm text-gray-600">Manage school expenses</p>
+                <a href="{{ route('accountant.expenses') }}" class="hover-lift rounded-xl border border-slate-200 border-l-4 border-l-rose-500 bg-white p-4 md:p-5">
+                    <div class="flex gap-3">
+                        <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
+                            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
+                        </div>
+                        <div>
+                            <h3 class="text-sm font-semibold text-slate-900 md:text-base">Expenses</h3>
+                            <p class="text-xs text-slate-500">School spend</p>
                         </div>
                     </div>
                 </a>
-
-                <!-- Bank API Integration -->
-                <a href="{{ route('accountant.bank-api') }}" class="bg-gradient-to-br from-green-500 to-teal-500 rounded-xl shadow-md hover:shadow-2xl p-4 md:p-6 hover-lift border-2 border-green-300">
-                    <div class="flex items-start gap-3 md:gap-4">
-                        <div class="text-3xl md:text-4xl">🏦</div>
-                        <div class="flex-1">
-                            <h3 class="text-base md:text-lg font-bold text-white mb-1">Bank API Integration</h3>
-                            <p class="text-xs md:text-sm text-green-50">Automated bank payments</p>
-                            <div class="mt-2">
-                                <span class="px-2 py-1 bg-white bg-opacity-30 rounded text-xs font-bold text-white">NEW!</span>
-                            </div>
+                <a href="{{ route('accountant.bank-api') }}" class="hover-lift rounded-xl border border-slate-200 border-l-4 border-l-emerald-600 bg-white p-4 md:p-5">
+                    <div class="flex gap-3">
+                        <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
+                            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-3.866 0-7 1.343-7 3v7h14v-7c0-1.657-3.134-3-7-3z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 11V9a7 7 0 0114 0v2"/></svg>
+                        </div>
+                        <div>
+                            <h3 class="text-sm font-semibold text-slate-900 md:text-base">Bank integration</h3>
+                            <p class="text-xs text-slate-500">API & automation</p>
+                            <span class="mt-2 inline-block rounded bg-slate-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-600">New</span>
                         </div>
                     </div>
                 </a>
-
-                <!-- SMS & Communication -->
-                <div class="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-xl shadow-md hover:shadow-2xl p-4 md:p-6 hover-lift border-2 border-indigo-200">
-                    <div class="flex items-start gap-3 md:gap-4 mb-3">
-                        <div class="text-3xl md:text-4xl">📱</div>
-                        <div class="flex-1">
-                            <h3 class="text-base md:text-lg font-bold text-indigo-600 mb-1">SMS & Communication</h3>
+                <div class="hover-lift rounded-xl border border-slate-200 border-l-4 border-l-indigo-500 bg-white p-4 md:p-5">
+                    <div class="mb-3 flex gap-3">
+                        <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
+                            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+                        </div>
+                        <div>
+                            <h3 class="text-sm font-semibold text-slate-900 md:text-base">SMS</h3>
+                            <p class="text-xs text-slate-500">Messaging</p>
                         </div>
                     </div>
                     <div class="space-y-2">
-                        <a href="{{ route('accountant.sms') }}" class="block bg-white hover:bg-indigo-50 px-3 py-2 rounded-lg border border-indigo-200 text-xs md:text-sm font-semibold text-indigo-700 transition">
-                            📤 Send SMS
-                        </a>
-                        <a href="{{ route('accountant.phone-numbers') }}" class="block bg-white hover:bg-indigo-50 px-3 py-2 rounded-lg border border-indigo-200 text-xs md:text-sm font-semibold text-indigo-700 transition">
-                            📞 Phone Numbers
-                        </a>
-                        <a href="{{ route('accountant.sms-logs') }}" class="block bg-white hover:bg-indigo-50 px-3 py-2 rounded-lg border border-indigo-200 text-xs md:text-sm font-semibold text-indigo-700 transition">
-                            📜 SMS Logs
-                        </a>
+                        <a href="{{ route('accountant.sms') }}" class="block rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-800 hover:bg-slate-100 md:text-sm">Send SMS</a>
+                        <a href="{{ route('accountant.phone-numbers') }}" class="block rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-800 hover:bg-slate-100 md:text-sm">Phone numbers</a>
+                        <a href="{{ route('accountant.sms-logs') }}" class="block rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-800 hover:bg-slate-100 md:text-sm">SMS logs</a>
                     </div>
                 </div>
-
-                <!-- Student Invoices -->
-                <a href="{{ route('accountant.invoices-page') }}" class="bg-white rounded-xl shadow-md hover:shadow-2xl p-4 md:p-6 hover-lift border-l-4 border-purple-500">
-                    <div class="flex items-start gap-3 md:gap-4">
-                        <div class="text-3xl md:text-4xl">📄</div>
-                        <div class="flex-1">
-                            <h3 class="text-base md:text-lg font-bold text-purple-600 mb-1">Student Invoices</h3>
-                            <p class="text-xs md:text-sm text-gray-600">Generate invoices</p>
+                <a href="{{ route('accountant.invoices-page') }}" class="hover-lift rounded-xl border border-slate-200 border-l-4 border-l-purple-500 bg-white p-4 md:p-5">
+                    <div class="flex gap-3">
+                        <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
+                            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                        </div>
+                        <div>
+                            <h3 class="text-sm font-semibold text-slate-900 md:text-base">Invoices</h3>
+                            <p class="text-xs text-slate-500">PDFs</p>
                         </div>
                     </div>
                 </a>
-
-                <!-- Class Management -->
-                <a href="{{ route('accountant.classes') }}" class="bg-white rounded-xl shadow-md hover:shadow-2xl p-4 md:p-6 hover-lift border-l-4 border-indigo-500">
-                    <div class="flex items-start gap-3 md:gap-4">
-                        <div class="text-3xl md:text-4xl">🎓</div>
-                        <div class="flex-1">
-                            <h3 class="text-base md:text-lg font-bold text-indigo-600 mb-1">Class Management</h3>
-                            <p class="text-xs md:text-sm text-gray-600">Manage school classes</p>
+                <a href="{{ route('accountant.classes') }}" class="hover-lift rounded-xl border border-slate-200 border-l-4 border-l-sky-500 bg-white p-4 md:p-5">
+                    <div class="flex gap-3">
+                        <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
+                            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+                        </div>
+                        <div>
+                            <h3 class="text-sm font-semibold text-slate-900 md:text-base">Classes</h3>
+                            <p class="text-xs text-slate-500">Structure</p>
                         </div>
                     </div>
                 </a>
-
-                <!-- Student Management -->
-                <a href="{{ route('accountant.students') }}" class="bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl shadow-md hover:shadow-2xl p-4 md:p-6 hover-lift border-2 border-blue-300">
-                    <div class="flex items-start gap-3 md:gap-4">
-                        <div class="text-3xl md:text-4xl">👨‍🎓</div>
-                        <div class="flex-1">
-                            <h3 class="text-base md:text-lg font-bold text-white mb-1">Student Management</h3>
-                            <p class="text-xs md:text-sm text-blue-50">Add & manage students</p>
-                            <div class="mt-2">
-                                <span class="px-2 py-1 bg-white bg-opacity-30 rounded text-xs font-bold text-white">BULK IMPORT</span>
-                            </div>
+                <a href="{{ route('accountant.students') }}" class="hover-lift rounded-xl border border-slate-200 border-l-4 border-l-blue-600 bg-white p-4 md:p-5">
+                    <div class="flex gap-3">
+                        <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
+                            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+                        </div>
+                        <div>
+                            <h3 class="text-sm font-semibold text-slate-900 md:text-base">Students</h3>
+                            <p class="text-xs text-slate-500">Roster & import</p>
+                            <span class="mt-2 inline-block rounded bg-slate-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-600">Bulk import</span>
                         </div>
                     </div>
                 </a>
-
-                <!-- Student Promotion -->
-                <a href="{{ route('students.promotion-page') }}" class="bg-white rounded-xl shadow-md hover:shadow-2xl p-4 md:p-6 hover-lift border-l-4 border-pink-500">
-                    <div class="flex items-start gap-3 md:gap-4">
-                        <div class="text-3xl md:text-4xl">📚</div>
-                        <div class="flex-1">
-                            <h3 class="text-base md:text-lg font-bold text-pink-600 mb-1">Student Promotion</h3>
-                            <p class="text-xs md:text-sm text-gray-600">Promote students to next class</p>
+                <a href="{{ route('students.promotion-page') }}" class="hover-lift rounded-xl border border-slate-200 border-l-4 border-l-fuchsia-500 bg-white p-4 md:p-5">
+                    <div class="flex gap-3">
+                        <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
+                            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
+                        </div>
+                        <div>
+                            <h3 class="text-sm font-semibold text-slate-900 md:text-base">Promotion</h3>
+                            <p class="text-xs text-slate-500">Next class</p>
                         </div>
                     </div>
                 </a>
-
-                <!-- School Settings -->
-                <a href="{{ route('accountant.settings') }}" class="bg-white rounded-xl shadow-md hover:shadow-2xl p-4 md:p-6 hover-lift border-l-4 border-gray-500">
-                    <div class="flex items-start gap-3 md:gap-4">
-                        <div class="text-3xl md:text-4xl">⚙️</div>
-                        <div class="flex-1">
-                            <h3 class="text-base md:text-lg font-bold text-gray-600 mb-1">School Settings</h3>
-                            <p class="text-xs md:text-sm text-gray-600">Configure system</p>
+                <a href="{{ route('accountant.settings') }}" class="hover-lift rounded-xl border border-slate-200 border-l-4 border-l-slate-500 bg-white p-4 md:p-5">
+                    <div class="flex gap-3">
+                        <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
+                            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15a3 3 0 100-6 3 3 0 000 6z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 .6 1.65 1.65 0 00-.33 1.82A2 2 0 1110 21.4a1.65 1.65 0 00-1-.6 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06A1.65 1.65 0 004.6 15a1.65 1.65 0 00-.6-1 1.65 1.65 0 00-1.82-.33A2 2 0 112.6 10a1.65 1.65 0 00.6-1 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06A1.65 1.65 0 009 4.6a1.65 1.65 0 001-.6 1.65 1.65 0 00.33-1.82A2 2 0 1114 2.6a1.65 1.65 0 001 .6 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06A1.65 1.65 0 0019.4 9c.24.31.42.65.52 1.02.1.37.1.76 0 1.13-.1.37-.28.71-.52 1.02z"/></svg>
+                        </div>
+                        <div>
+                            <h3 class="text-sm font-semibold text-slate-900 md:text-base">Settings</h3>
+                            <p class="text-xs text-slate-500">School profile</p>
                         </div>
                     </div>
                 </a>
@@ -676,14 +488,9 @@
 
     </div>
 
-    <!-- Footer -->
-    <footer class="bg-gray-800 text-white mt-12 py-6">
-        <div class="container mx-auto px-6 text-center">
-            <p class="text-sm md:text-base">&copy; {{ date('Y') }} Darasa Finance ERP. All rights reserved.</p>
-            <p class="text-xs text-gray-400 mt-2">Empowering schools with smart financial management</p>
-        </div>
-    </footer>
+@endsection
 
+@push('scripts')
     <script>
         let collectionChart, paymentMethodsChart, particularsChart;
         let currentPeriod = 'today';
@@ -708,22 +515,61 @@
                 maxDate: "today"
             });
 
+            // Student Payment Completion Status date range filter
+            flatpickr("#status-from-date", {
+                dateFormat: "Y-m-d",
+                maxDate: "today"
+            });
+            flatpickr("#status-to-date", {
+                dateFormat: "Y-m-d",
+                maxDate: "today"
+            });
+
             // Analytics will be loaded automatically after charts are initialized
         });
+
+        function collectionProgressBar(rate, heightClass) {
+            const pct = Math.min(100, Math.max(0, parseFloat(rate) || 0));
+            const h = heightClass || 'h-2.5';
+            return `
+                <div class="flex-1 overflow-hidden rounded-full bg-green-100 ${h === 'h-2' ? '' : ''}">
+                    <div class="${h} rounded-full darasa-collection-fill transition-all duration-300" style="width: ${pct}%; min-width: ${pct > 0 ? '4px' : '0'}; background-color: #22c55e;"></div>
+                </div>
+            `;
+        }
+
+        function formatPeriodLabel(period, data) {
+            if (period === 'custom' && data?.date_from && data?.date_to) {
+                return `${data.date_from} to ${data.date_to}`;
+            }
+            const labels = {
+                today: 'Today',
+                weekly: 'This week',
+                monthly: 'This month',
+                yearly: 'This year',
+                custom: 'Custom range',
+            };
+            return labels[period] || period;
+        }
 
         function loadAnalytics(period) {
             currentPeriod = period;
             console.log('Loading analytics for period:', period);
 
+            // Hide custom date picker when switching to preset periods
+            const customPicker = document.getElementById('custom-date-picker');
+            if (customPicker) {
+                customPicker.classList.add('hidden');
+            }
             // Update active button
             document.querySelectorAll('.analytics-btn').forEach(btn => {
-                btn.classList.remove('bg-blue-500', 'text-white', 'shadow-lg');
-                btn.classList.add('bg-gray-200', 'text-gray-700');
+                btn.classList.remove('border-blue-700', 'bg-blue-600', 'text-white', 'shadow-sm');
+                btn.classList.add('border-slate-200', 'bg-white', 'text-slate-700');
             });
             const activeBtn = document.getElementById('btn-' + period);
             if (activeBtn) {
-                activeBtn.classList.remove('bg-gray-200', 'text-gray-700');
-                activeBtn.classList.add('bg-blue-500', 'text-white', 'shadow-lg');
+                activeBtn.classList.remove('border-slate-200', 'bg-white', 'text-slate-700');
+                activeBtn.classList.add('border-blue-700', 'bg-blue-600', 'text-white', 'shadow-sm');
             }
 
             // Show skeleton while loading
@@ -737,7 +583,7 @@
                 })
                 .catch(error => {
                     console.error('Error loading analytics for', period, ':', error);
-                    setTimeout(() => showSampleData(period), 300);
+                    setTimeout(() => showAnalyticsLoadError(period, error), 300);
                 });
         }
 
@@ -747,32 +593,116 @@
                 <div class="skeleton rounded-xl h-32 md:h-36"></div>
                 <div class="skeleton rounded-xl h-32 md:h-36"></div>
                 <div class="skeleton rounded-xl h-32 md:h-36"></div>
+                <div class="skeleton rounded-xl h-32 md:h-36"></div>
             `;
         }
 
-        function showSampleData(period) {
-            const periodLabels = {
-                'today': 'today',
-                'weekly': 'this week',
-                'monthly': 'this month',
-                'yearly': 'this year'
-            };
+        function showAnalyticsLoadError(period, error) {
+            const message = error?.response?.data?.error || error?.message || 'Failed to load analytics.';
+            renderAnalyticsCards({
+                collected: 0,
+                expected: 0,
+                overdue: 0,
+                students: 0,
+                rate: 0,
+                books_balance: 0,
+                scholarships: 0,
+            }, period);
+            allClassStats = [];
+            displayClassStats([]);
+            document.getElementById('total-students').textContent = '0';
+            document.getElementById('completed-students').textContent = '0';
+            document.getElementById('incomplete-students').textContent = '0';
+            document.getElementById('completion-rate').textContent = '0%';
+            const tbody = document.getElementById('class-stats-table');
+            if (tbody) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="5" class="px-4 py-6 text-center text-red-600">
+                            <p class="font-semibold mb-1">Could not load class statistics</p>
+                            <p class="text-sm text-gray-600">${message}</p>
+                        </td>
+                    </tr>
+                `;
+            }
+        }
 
-            const sampleData = {
-                'today': { collected: 1500000, expected: 2000000, overdue: 500000, students: 12, rate: 75 },
-                'weekly': { collected: 8500000, expected: 12000000, overdue: 3500000, students: 45, rate: 71 },
-                'monthly': { collected: 35000000, expected: 50000000, overdue: 15000000, students: 125, rate: 70 },
-                'yearly': { collected: 420000000, expected: 600000000, overdue: 180000000, students: 320, rate: 70 }
-            };
+        function getStatusDateRangeParams() {
+            const from = (document.getElementById('status-from-date')?.value || '').trim();
+            const to = (document.getElementById('status-to-date')?.value || '').trim();
+            if (!from && !to) return null;
+            return { from_date: from || null, to_date: to || null };
+        }
 
-            const data = sampleData[period];
-            renderAnalyticsCards(data, periodLabels[period]);
+        function applyStatusDateFilter() {
+            // Reset class/student filters but keep values in UI
+            const params = getStatusDateRangeParams();
+            if (!params || (!params.from_date && !params.to_date)) {
+                filterClassStats();
+                return;
+            }
+            if (!params.from_date || !params.to_date) {
+                alert('Please select both From and To dates.');
+                return;
+            }
+            loadStatusClassStats(params.from_date, params.to_date);
+        }
+
+        function clearStatusDateFilter() {
+            const fromEl = document.getElementById('status-from-date');
+            const toEl = document.getElementById('status-to-date');
+            if (fromEl) fromEl.value = '';
+            if (toEl) toEl.value = '';
+            // Restore stats from the current period analytics payload if available
+            loadAnalytics(currentPeriod || 'today');
+        }
+
+        function loadStatusClassStats(fromDate, toDate) {
+            const tbody = document.getElementById('class-stats-table');
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="5" class="px-4 py-8 text-center text-gray-500">Loading class statistics for selected date range...</td>
+                </tr>
+            `;
+
+            axios.get('/api/analytics/class-stats', { params: { from_date: fromDate, to_date: toDate } })
+                .then(response => {
+                    const stats = response.data?.class_stats || [];
+                    allClassStats = stats;
+                    displayClassStats(allClassStats);
+                    populateClassFilter(allClassStats);
+
+                    const totalStudents = allClassStats.reduce((sum, stat) => sum + stat.total_students, 0);
+                    const completedStudents = allClassStats.reduce((sum, stat) => sum + stat.completed_students, 0);
+                    const incompleteStudents = totalStudents - completedStudents;
+                    const overallRate = totalStudents > 0 ? ((completedStudents / totalStudents) * 100).toFixed(1) : 0;
+
+                    document.getElementById('total-students').textContent = totalStudents;
+                    document.getElementById('completed-students').textContent = completedStudents;
+                    document.getElementById('incomplete-students').textContent = incompleteStudents;
+                    document.getElementById('completion-rate').textContent = overallRate + '%';
+                    filterClassStats();
+                })
+                .catch(error => {
+                    console.error('Error loading class stats for date range:', error);
+                    const message = error?.response?.data?.message || error?.response?.data?.error || error?.message || 'Failed to load.';
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="5" class="px-4 py-6 text-center text-red-600">
+                                <p class="font-semibold mb-1">Could not load class statistics for selected date range</p>
+                                <p class="text-sm text-gray-600">${message}</p>
+                            </td>
+                        </tr>
+                    `;
+                });
         }
 
         function updateAnalyticsUI(data) {
             // Calculate collection rate
             const totalExpected = data.summary.total_expected || 0;
             const totalCollections = data.summary.total_collections || 0;
+            const booksTotalBalance = data.summary.books_total_balance || 0;
+            const scholarshipsTotal = data.summary.total_scholarships || 0;
             const collectionRate = totalExpected > 0
                 ? ((totalCollections / totalExpected) * 100).toFixed(1)
                 : 0;
@@ -782,8 +712,18 @@
                 expected: totalExpected,
                 overdue: data.summary.outstanding_balance || 0,
                 students: data.summary.active_students || 0,
-                rate: collectionRate
-            }, currentPeriod);
+                rate: collectionRate,
+                books_balance: booksTotalBalance,
+                scholarships: scholarshipsTotal,
+            }, formatPeriodLabel(data.period || currentPeriod, data));
+
+            // Keep class "Collected" filter aligned with the active analytics period
+            if (data.date_from && data.date_to) {
+                const fromEl = document.getElementById('status-from-date');
+                const toEl = document.getElementById('status-to-date');
+                if (fromEl) fromEl.value = data.date_from;
+                if (toEl) toEl.value = data.date_to;
+            }
 
             // Update class statistics
             if (data.class_stats && data.class_stats.length > 0) {
@@ -836,7 +776,7 @@
                             <div class="text-gray-500">
                                 <p class="font-semibold mb-2">No class data available</p>
                                 <p class="text-sm">Students need to be assigned to classes (Grade 1-6, Form 1-4) to view class-wise statistics.</p>
-                                <a href="{{ route('accountant.students') }}" class="inline-block mt-3 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition text-sm">
+                                <a href="{{ route('accountant.students') }}" class="mt-3 inline-block rounded-lg bg-blue-600 px-4 py-2 text-sm text-white transition hover:bg-blue-700">
                                     Manage Students
                                 </a>
                             </div>
@@ -852,18 +792,16 @@
                 <tr class="border-b hover:bg-gray-50">
                     <td class="px-4 py-3 font-semibold">${stat.class_name}</td>
                     <td class="px-4 py-3">
-                        <span class="font-bold text-green-600">${stat.completed_students}</span> /
+                        <span class="font-bold text-slate-900">${stat.completed_students}</span> /
                         <span class="text-gray-600">${stat.total_students}</span>
                         <span class="text-xs text-gray-500">(${incompleteStudents} incomplete)</span>
                     </td>
                     <td class="px-4 py-3 font-semibold">TSH ${Math.round(stat.expected_amount).toLocaleString()}</td>
-                    <td class="px-4 py-3 font-semibold text-green-600">TSH ${Math.round(stat.collected_amount).toLocaleString()}</td>
+                    <td class="px-4 py-3 font-semibold text-slate-900">TSH ${Math.round(stat.collected_amount).toLocaleString()}</td>
                     <td class="px-4 py-3">
                         <div class="flex items-center gap-2">
-                            <div class="flex-1 bg-gray-200 rounded-full h-2">
-                                <div class="bg-green-500 h-2 rounded-full" style="width: ${stat.collection_rate}%"></div>
-                            </div>
-                            <span class="font-bold text-sm">${stat.collection_rate}%</span>
+                            ${collectionProgressBar(stat.collection_rate, 'h-2.5')}
+                            <span class="font-bold text-sm text-green-700">${stat.collection_rate}%</span>
                         </div>
                     </td>
                 </tr>
@@ -945,7 +883,7 @@
             const dropdown = document.getElementById('autocomplete-dropdown');
 
             dropdown.innerHTML = students.map(student => `
-                <div class="px-4 py-3 hover:bg-blue-50 cursor-pointer border-b last:border-b-0" onclick="selectStudent(${student.id}, '${student.name.replace(/'/g, "\\'")}', '${student.student_reg_no}')">
+                <div class="cursor-pointer border-b px-4 py-3 last:border-b-0 hover:bg-slate-50" onclick="selectStudent(${student.id}, '${student.name.replace(/'/g, "\\'")}', '${student.student_reg_no}')">
                     <div class="font-semibold text-sm">${student.name}</div>
                     <div class="text-xs text-gray-500">Reg: ${student.student_reg_no} | Class: ${student.class}</div>
                 </div>
@@ -981,12 +919,13 @@
             `;
 
             // Fetch student payment summary
-            axios.get('/api/students/' + studentId + '/payment-summary')
+            const params = getStatusDateRangeParams();
+            axios.get('/api/students/' + studentId + '/payment-summary', { params: params || {} })
                 .then(response => {
                     const student = response.data;
 
                     tbody.innerHTML = `
-                        <tr class="bg-blue-50">
+                        <tr class="bg-slate-50">
                             <td colspan="5" class="px-6 py-6">
                                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                     <div>
@@ -996,12 +935,12 @@
                                     </div>
                                     <div>
                                         <p class="text-xs text-gray-500 uppercase font-semibold mb-1">Class</p>
-                                        <p class="text-lg font-bold text-blue-600">${student.class}</p>
+                                        <p class="text-lg font-bold text-slate-900">${student.class}</p>
                                     </div>
                                     <div>
                                         <p class="text-xs text-gray-500 uppercase font-semibold mb-1">Assignments</p>
                                         <p class="text-lg font-bold">
-                                            <span class="text-green-600">${student.completed_assignments}</span>
+                                            <span class="text-slate-900">${student.completed_assignments}</span>
                                             <span class="text-gray-400">/</span>
                                             <span class="text-gray-600">${student.total_assignments}</span>
                                         </p>
@@ -1013,15 +952,13 @@
                                     </div>
                                     <div>
                                         <p class="text-xs text-gray-500 uppercase font-semibold mb-1">Collected Amount</p>
-                                        <p class="text-lg font-bold text-green-600">TSH ${student.total_collected.toLocaleString()}</p>
+                                        <p class="text-lg font-bold text-slate-900">TSH ${student.total_collected.toLocaleString()}</p>
                                     </div>
                                     <div>
                                         <p class="text-xs text-gray-500 uppercase font-semibold mb-1">Collection Rate</p>
                                         <div class="flex items-center gap-3">
-                                            <div class="flex-1 bg-gray-200 rounded-full h-3">
-                                                <div class="bg-green-500 h-3 rounded-full transition-all" style="width: ${student.collection_rate}%"></div>
-                                            </div>
-                                            <span class="text-lg font-bold text-green-600">${student.collection_rate}%</span>
+                                            ${collectionProgressBar(student.collection_rate, 'h-3')}
+                                            <span class="text-lg font-bold text-green-700">${student.collection_rate}%</span>
                                         </div>
                                     </div>
                                 </div>
@@ -1063,13 +1000,11 @@
                         <span class="text-xs text-gray-500">Class: ${student.class || 'Not Assigned'}</span>
                     </td>
                     <td class="px-4 py-3 font-semibold">TSH ${(student.total_expected || 0).toLocaleString()}</td>
-                    <td class="px-4 py-3 font-semibold text-green-600">TSH ${(student.total_collected || 0).toLocaleString()}</td>
+                    <td class="px-4 py-3 font-semibold text-slate-900">TSH ${(student.total_collected || 0).toLocaleString()}</td>
                     <td class="px-4 py-3">
                         <div class="flex items-center gap-2">
-                            <div class="flex-1 bg-gray-200 rounded-full h-2">
-                                <div class="bg-green-500 h-2 rounded-full" style="width: ${student.collection_rate || 0}%"></div>
-                            </div>
-                            <span class="font-bold text-sm">${student.collection_rate || 0}%</span>
+                            ${collectionProgressBar(student.collection_rate || 0, 'h-2.5')}
+                            <span class="font-bold text-sm text-green-700">${student.collection_rate || 0}%</span>
                         </div>
                     </td>
                 </tr>
@@ -1136,49 +1071,42 @@
         }
 
         function renderAnalyticsCards(data, period) {
+            const fmt = (n) => {
+                const v = Math.round(Number(n) || 0);
+                return 'TSH ' + v.toLocaleString('en-TZ');
+            };
+            const scholarshipsNote = data.scholarships
+                ? ` · Scholarships: ${fmt(data.scholarships)}`
+                : '';
             const cardsHTML = `
-                <div class="bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-xl shadow-xl p-4 md:p-6 hover-lift fade-in">
-                    <div class="flex justify-between items-start">
-                        <div class="flex-1">
-                            <p class="text-blue-100 text-xs md:text-sm font-medium">Total Fee Collected</p>
-                            <h3 class="text-2xl md:text-3xl font-bold mt-2">TSH ${Math.round(data.collected).toLocaleString()}</h3>
-                            <p class="text-xs md:text-sm mt-2 text-blue-100">${period}</p>
-                        </div>
-                        <div class="text-3xl md:text-4xl opacity-80">💰</div>
-                    </div>
+                <div class="rounded-xl border border-slate-200 bg-white p-4 fade-in hover-lift md:p-5">
+                    <p class="text-xs font-medium text-slate-500 md:text-sm">Total fee collected</p>
+                    <p class="mt-2 break-words text-base font-semibold tabular-nums leading-snug text-slate-900 sm:text-lg">${fmt(data.collected)}</p>
+                    <p class="mt-1 text-xs text-slate-500">${period}</p>
                 </div>
 
-                <div class="bg-gradient-to-br from-green-500 to-green-600 text-white rounded-xl shadow-xl p-4 md:p-6 hover-lift fade-in">
-                    <div class="flex justify-between items-start">
-                        <div class="flex-1">
-                            <p class="text-green-100 text-xs md:text-sm font-medium">Expected Fees</p>
-                            <h3 class="text-2xl md:text-3xl font-bold mt-2">TSH ${Math.round(data.expected).toLocaleString()}</h3>
-                            <p class="text-xs md:text-sm mt-2 text-green-100">${period}</p>
-                        </div>
-                        <div class="text-3xl md:text-4xl opacity-80">📊</div>
-                    </div>
+                <div class="rounded-xl border border-slate-200 bg-white p-4 fade-in hover-lift md:p-5">
+                    <p class="text-xs font-medium text-slate-500 md:text-sm">Expected fees</p>
+                    <p class="mt-2 break-words text-base font-semibold tabular-nums leading-snug text-slate-900 sm:text-lg">${fmt(data.expected)}</p>
+                    <p class="mt-1 break-words text-xs text-slate-500">${period}${scholarshipsNote}</p>
                 </div>
 
-                <div class="bg-gradient-to-br from-red-500 to-red-600 text-white rounded-xl shadow-xl p-4 md:p-6 hover-lift fade-in">
-                    <div class="flex justify-between items-start">
-                        <div class="flex-1">
-                            <p class="text-red-100 text-xs md:text-sm font-medium">Total Overdue</p>
-                            <h3 class="text-2xl md:text-3xl font-bold mt-2">TSH ${Math.round(data.overdue).toLocaleString()}</h3>
-                            <p class="text-xs md:text-sm mt-2 text-red-100">${data.students} students</p>
-                        </div>
-                        <div class="text-3xl md:text-4xl opacity-80">💸</div>
-                    </div>
+                <div class="rounded-xl border border-slate-200 bg-white p-4 fade-in hover-lift md:p-5">
+                    <p class="text-xs font-medium text-slate-500 md:text-sm">Total overdue</p>
+                    <p class="mt-2 break-words text-base font-semibold tabular-nums leading-snug text-slate-900 sm:text-lg">${fmt(data.overdue)}</p>
+                    <p class="mt-1 text-xs text-slate-500">${data.students} students</p>
                 </div>
 
-                <div class="bg-gradient-to-br from-purple-500 to-purple-600 text-white rounded-xl shadow-xl p-4 md:p-6 hover-lift fade-in">
-                    <div class="flex justify-between items-start">
-                        <div class="flex-1">
-                            <p class="text-purple-100 text-xs md:text-sm font-medium">Collection Rate</p>
-                            <h3 class="text-2xl md:text-3xl font-bold mt-2">${data.rate}%</h3>
-                            <p class="text-xs md:text-sm mt-2 text-purple-100">${period}</p>
-                        </div>
-                        <div class="text-3xl md:text-4xl opacity-80">📈</div>
-                    </div>
+                <div class="rounded-xl border border-slate-200 bg-white p-4 fade-in hover-lift md:p-5">
+                    <p class="text-xs font-medium text-slate-500 md:text-sm">Collection rate</p>
+                    <p class="mt-2 text-base font-semibold tabular-nums text-slate-900 sm:text-lg">${data.rate}%</p>
+                    <p class="mt-1 text-xs text-slate-500">${period}</p>
+                </div>
+
+                <div class="rounded-xl border border-slate-200 bg-white p-4 fade-in hover-lift md:p-5">
+                    <p class="text-xs font-medium text-slate-500 md:text-sm">Total balance in books</p>
+                    <p class="mt-2 break-words text-base font-semibold tabular-nums leading-snug text-slate-900 sm:text-lg">${fmt(data.books_balance || 0)}</p>
+                    <p class="mt-1 text-xs text-slate-500">Cash and bank balances</p>
                 </div>
             `;
 
@@ -1206,17 +1134,17 @@
             collectionChart = new Chart(ctxCollection, {
                 type: 'line',
                 data: {
-                    labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+                    labels: [],
                     datasets: [{
                         label: 'Collected',
-                        data: [1200000, 1500000, 1100000, 1800000, 2000000, 900000, 1500000],
-                        borderColor: 'rgb(59, 130, 246)',
-                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        data: [],
+                        borderColor: 'rgb(37, 99, 235)',
+                        backgroundColor: 'rgba(37, 99, 235, 0.1)',
                         fill: false,
                         tension: 0.4,
                         borderWidth: 3,
                         pointRadius: 4,
-                        pointBackgroundColor: 'rgb(59, 130, 246)',
+                        pointBackgroundColor: 'rgb(37, 99, 235)',
                         pointBorderColor: '#fff',
                         pointBorderWidth: 2,
                         pointHoverRadius: 6
@@ -1240,7 +1168,9 @@
                             beginAtZero: true,
                             ticks: {
                                 callback: function(value) {
-                                    return 'TSH ' + (value / 1000000).toFixed(1) + 'M';
+                                    if (value >= 1000000) return 'TSH ' + (value / 1000000).toFixed(1) + 'M';
+                                    if (value >= 1000) return 'TSH ' + (value / 1000).toFixed(0) + 'K';
+                                    return 'TSH ' + value;
                                 }
                             }
                         }
@@ -1257,14 +1187,14 @@
                     datasets: [{
                         data: [1],
                         backgroundColor: [
-                            'rgb(59, 130, 246)',
+                            'rgb(37, 99, 235)',
                             'rgb(16, 185, 129)',
-                            'rgb(249, 115, 22)',
-                            'rgb(168, 85, 247)',
-                            'rgb(236, 72, 153)',
-                            'rgb(251, 191, 36)',
-                            'rgb(139, 92, 246)',
-                            'rgb(14, 165, 233)'
+                            'rgb(217, 119, 6)',
+                            'rgb(124, 58, 237)',
+                            'rgb(8, 145, 178)',
+                            'rgb(234, 88, 12)',
+                            'rgb(99, 102, 241)',
+                            'rgb(236, 72, 153)'
                         ],
                         borderWidth: 3,
                         borderColor: '#fff'
@@ -1311,16 +1241,16 @@
                         {
                             label: 'Expected Amount',
                             data: [],
-                            backgroundColor: 'rgba(147, 51, 234, 0.7)',
-                            borderColor: 'rgb(147, 51, 234)',
+                            backgroundColor: 'rgba(99, 102, 241, 0.65)',
+                            borderColor: 'rgb(99, 102, 241)',
                             borderWidth: 2
                         },
                         {
                             label: 'Collected Amount',
                             data: [],
-                            backgroundColor: 'rgba(34, 197, 94, 0.7)',
-                            borderColor: 'rgb(34, 197, 94)',
-                            borderWidth: 2
+                            backgroundColor: 'rgb(34, 197, 94)',
+                            borderColor: 'rgb(22, 163, 74)',
+                            borderWidth: 1
                         }
                     ]
                 },
@@ -1396,13 +1326,13 @@
                         datasets: [{
                             label: 'Collections',
                             data: amounts,
-                            borderColor: 'rgb(59, 130, 246)',
-                            backgroundColor: 'rgba(59, 130, 246, 0.15)',
+                            borderColor: 'rgb(37, 99, 235)',
+                            backgroundColor: 'rgba(37, 99, 235, 0.15)',
                             fill: true,
                             tension: 0.4,
                             borderWidth: 3,
                             pointRadius: 5,
-                            pointBackgroundColor: 'rgb(59, 130, 246)',
+                            pointBackgroundColor: 'rgb(37, 99, 235)',
                             pointBorderColor: '#ffffff',
                             pointBorderWidth: 2,
                             pointHoverRadius: 8
@@ -1444,14 +1374,14 @@
             // Update books distribution chart and legend
             if (paymentMethodsChart && data.books_distribution) {
                 const colors = [
-                    'rgb(59, 130, 246)',
+                    'rgb(37, 99, 235)',
                     'rgb(16, 185, 129)',
-                    'rgb(249, 115, 22)',
-                    'rgb(168, 85, 247)',
-                    'rgb(236, 72, 153)',
-                    'rgb(251, 191, 36)',
-                    'rgb(139, 92, 246)',
-                    'rgb(14, 165, 233)'
+                    'rgb(217, 119, 6)',
+                    'rgb(124, 58, 237)',
+                    'rgb(8, 145, 178)',
+                    'rgb(234, 88, 12)',
+                    'rgb(99, 102, 241)',
+                    'rgb(236, 72, 153)'
                 ];
 
                 if (data.books_distribution && data.books_distribution.length > 0) {
@@ -1505,45 +1435,18 @@
             }
         }
 
-        // Sidebar functions
-        function toggleSidebar() {
-            const sidebar = document.getElementById('sidebar');
-            const overlay = document.getElementById('sidebar-overlay');
-
-            if (sidebar.classList.contains('-translate-x-full')) {
-                sidebar.classList.remove('-translate-x-full');
-                overlay.classList.remove('hidden');
-            } else {
-                sidebar.classList.add('-translate-x-full');
-                overlay.classList.add('hidden');
-            }
-        }
-
-        function toggleCategory(category) {
-            const submenu = document.getElementById(category + '-submenu');
-            const arrow = document.getElementById(category + '-arrow');
-
-            if (submenu.classList.contains('hidden')) {
-                submenu.classList.remove('hidden');
-                arrow.classList.add('rotate-180');
-            } else {
-                submenu.classList.add('hidden');
-                arrow.classList.remove('rotate-180');
-            }
-        }
-
         // Custom date picker functions
         function showCustomDatePicker() {
             document.getElementById('custom-date-picker').classList.remove('hidden');
 
             // Update button states
             document.querySelectorAll('.analytics-btn').forEach(btn => {
-                btn.classList.remove('bg-blue-500', 'text-white', 'shadow-lg');
-                btn.classList.add('bg-gray-200', 'text-gray-700');
+                btn.classList.remove('border-blue-700', 'bg-blue-600', 'text-white', 'shadow-sm');
+                btn.classList.add('border-slate-200', 'bg-white', 'text-slate-700');
             });
             const customBtn = document.getElementById('btn-custom');
-            customBtn.classList.remove('bg-gray-200', 'text-gray-700');
-            customBtn.classList.add('bg-blue-500', 'text-white', 'shadow-lg');
+            customBtn.classList.remove('border-slate-200', 'bg-white', 'text-slate-700');
+            customBtn.classList.add('border-blue-700', 'bg-blue-600', 'text-white', 'shadow-sm');
         }
 
         function hideCustomDatePicker() {
@@ -1569,6 +1472,19 @@
                 return;
             }
 
+            currentPeriod = 'custom';
+
+            // Update active button
+            document.querySelectorAll('.analytics-btn').forEach(btn => {
+                btn.classList.remove('border-blue-700', 'bg-blue-600', 'text-white', 'shadow-sm');
+                btn.classList.add('border-slate-200', 'bg-white', 'text-slate-700');
+            });
+            const customBtn = document.getElementById('btn-custom');
+            if (customBtn) {
+                customBtn.classList.remove('border-slate-200', 'bg-white', 'text-slate-700');
+                customBtn.classList.add('border-blue-700', 'bg-blue-600', 'text-white', 'shadow-sm');
+            }
+
             // Show skeleton while loading
             showSkeletonCards();
 
@@ -1584,10 +1500,8 @@
             })
             .catch(error => {
                 console.error('Error loading custom analytics:', error);
-                alert('Error loading analytics for custom date range. The API endpoint may not be implemented yet.');
-                hideCustomDatePicker();
+                setTimeout(() => showAnalyticsLoadError('custom', error), 300);
             });
         }
     </script>
-</body>
-</html>
+@endpush

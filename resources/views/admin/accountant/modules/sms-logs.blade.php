@@ -1,47 +1,14 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>SMS Logs - Darasa Finance</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-</head>
-<body class="bg-gray-100">
-    <div class="min-h-screen">
-        <!-- Header with Breadcrumb -->
-        <nav class="bg-gradient-to-r from-blue-600 to-cyan-600 text-white p-4 shadow-lg">
-            <div class="container mx-auto">
-                <!-- Breadcrumb Navigation -->
-                <div class="mb-2 text-sm">
-                    <a href="{{ route('accountant.dashboard') }}" class="hover:text-blue-200 transition">🏠 Home</a>
-                    <span class="mx-2">›</span>
-                    <a href="{{ route('accountant.sms') }}" class="hover:text-blue-200 transition">SMS Notification</a>
-                    <span class="mx-2">›</span>
-                    <span class="text-blue-200">SMS Logs</span>
-                </div>
+@extends('layouts.accountant')
 
-                <div class="flex justify-between items-center">
-                    <div class="flex items-center gap-4">
-                        <h1 class="text-2xl font-bold">📋 SMS Logs & History</h1>
-                    </div>
-                    <div class="flex gap-3">
-                        <a href="{{ route('accountant.sms') }}" class="bg-blue-500 hover:bg-blue-600 px-4 py-2 rounded transition">
-                            📤 Send SMS
-                        </a>
-                        <a href="{{ route('accountant.phone-numbers') }}" class="bg-green-500 hover:bg-green-600 px-4 py-2 rounded transition">
-                            📞 Manage Phones
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </nav>
+@section('title', 'SMS logs — Darasa Finance')
+@section('page_title', 'SMS logs')
 
-        <div class="container mx-auto p-6">
+@section('content')
+<div class="w-full p-6">
             <!-- Filters -->
             <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
                 <h2 class="text-lg font-bold mb-4 text-gray-700">🔍 Filter Logs</h2>
-                <form method="GET" action="{{ route('sms.logs') }}" class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <form method="GET" action="{{ route('accountant.sms-logs') }}" class="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">Status</label>
                         <select name="status" class="w-full border-gray-300 rounded-lg shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border">
@@ -187,5 +154,4 @@
             </div>
         </div>
     </div>
-</body>
-</html>
+@endsection

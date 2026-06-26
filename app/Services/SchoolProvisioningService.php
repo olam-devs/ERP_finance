@@ -4,6 +4,8 @@ namespace App\Services;
 
 use App\Models\Central\School;
 use App\Models\Central\SchoolAccountant;
+use App\Models\Platform\PlatformSchool;
+use App\Services\PlatformRegistry;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -14,11 +16,13 @@ class SchoolProvisioningService
 {
     protected TenantDatabaseManager $tenantManager;
     protected ActivityLogger $activityLogger;
+    protected PlatformRegistry $platformRegistry;
 
-    public function __construct(TenantDatabaseManager $tenantManager, ActivityLogger $activityLogger)
+    public function __construct(TenantDatabaseManager $tenantManager, ActivityLogger $activityLogger, PlatformRegistry $platformRegistry)
     {
         $this->tenantManager = $tenantManager;
         $this->activityLogger = $activityLogger;
+        $this->platformRegistry = $platformRegistry;
     }
 
     /**
@@ -40,11 +44,18 @@ class SchoolProvisioningService
                 ? $existingDatabaseName
                 : $this->generateDatabaseName($data['name']);
 
+            // Allocate a unique 3-digit school code from the platform
+            $code = $this->platformRegistry->allocateSchoolCode();
+
+            $hasFinance  = (bool) ($data['has_finance']  ?? true);
+            $hasAcademics = (bool) ($data['has_academics'] ?? false);
+
             // 1. Create school record in central database
             $school = School::create([
                 'name' => $data['name'],
                 'slug' => $data['slug'] ?? Str::slug($data['name']),
-                'database_name' => $databaseName,
+                'code' => $code,
+                'database_name' => $hasFinance ? $databaseName : null,
                 'db_host' => $data['db_host'] ?? null,
                 'db_port' => $data['db_port'] ?? null,
                 'db_username' => $data['db_username'] ?? null,
@@ -58,39 +69,77 @@ class SchoolProvisioningService
                 'subscription_status' => $data['subscription_status'] ?? 'active',
                 'subscription_expires_at' => $data['subscription_expires_at'] ?? null,
                 'max_students' => $data['max_students'] ?? 1000,
+                'has_finance' => $hasFinance,
+                'has_academics' => $hasAcademics,
+                'cross_jump_enabled' => false,
+                'parent_cross_access' => false,
+                'academics_db_name' => $data['academics_db_name'] ?? null,
             ]);
 
+            // 2. Mirror to platform_schools so Academics can discover this school
+            $platformSchool = PlatformSchool::create([
+                'name'             => $school->name,
+                'code'             => $code,
+                'slug'             => $school->slug,
+                'location'         => $school->address,
+                'status'           => 'active',
+                'has_finance'      => true,
+                'has_academics'    => $school->has_academics,
+                'cross_jump_enabled' => false,
+                'parent_cross_access' => false,
+                'finance_db_name'  => $databaseName,
+                'finance_db_host'  => $data['db_host'] ?? null,
+                'finance_db_port'  => $data['db_port'] ?? null,
+                'finance_db_user'  => $data['db_username'] ?? null,
+                'finance_db_pass'  => $data['db_password'] ?? null,
+                'academics_db_name' => $data['academics_db_name'] ?? null,
+            ]);
+
+            $school->update(['platform_school_id' => $platformSchool->id]);
+
             try {
-                if ($useExistingDatabase) {
-                    // Verify the existing database is accessible
-                    $this->verifyExistingDatabase($school);
-
-                    // Update tenant school_settings with the school info from central
-                    $this->syncSettingsToTenant($school);
-                } else {
-                    // 2. Create the database
-                    if (!$this->tenantManager->createDatabase($school->database_name)) {
-                        throw new \Exception("Failed to create database for school: {$school->name}");
+                // ── Finance tenant DB ─────────────────────────────────────
+                if ($hasFinance) {
+                    if ($useExistingDatabase) {
+                        $this->verifyExistingDatabase($school);
+                        $this->syncSettingsToTenant($school);
+                    } else {
+                        if (!$this->tenantManager->createDatabase($school->database_name)) {
+                            throw new \Exception("Failed to create Finance database for school: {$school->name}");
+                        }
+                        $this->runTenantMigrations($school);
+                        $this->seedDefaultData($school);
                     }
-
-                    // 3. Run migrations on the new database
-                    $this->runTenantMigrations($school);
-
-                    // 4. Seed default data
-                    $this->seedDefaultData($school);
+                    $this->createDefaultAccountant($school, $data);
                 }
 
-                // 5. Create default accountant user
-                $accountant = $this->createDefaultAccountant($school, $data);
+                // ── Academics tenant DB ───────────────────────────────────
+                if ($hasAcademics) {
+                    $academicsDb = $data['academics_db_name'] ?? $this->generateAcademicsDbName($data['name']);
+                    $school->update(['academics_db_name' => $academicsDb]);
+                    PlatformSchool::where('id', $school->platform_school_id)
+                        ->update(['academics_db_name' => $academicsDb]);
+
+                    if (!$this->tenantManager->createDatabase($academicsDb)) {
+                        throw new \Exception("Failed to create Academics database for school: {$school->name}");
+                    }
+                    $this->runAcademicsMigrations($academicsDb, $school);
+                }
 
                 // 6. Log the activity
                 $this->activityLogger->logSchoolCreation($school);
 
                 return $school;
             } catch (\Exception $e) {
-                // Rollback: delete database if something fails (only if we created it)
-                if (!$useExistingDatabase) {
+                if (!$useExistingDatabase && $hasFinance && $school->database_name) {
                     $this->tenantManager->dropDatabase($school->database_name);
+                }
+                if ($hasAcademics && !empty($school->academics_db_name)) {
+                    $this->tenantManager->dropDatabase($school->academics_db_name);
+                }
+                if (isset($platformSchool)) {
+                    $this->platformRegistry->freeSchoolCode($platformSchool->id);
+                    $platformSchool->delete();
                 }
                 $school->delete();
 
@@ -120,18 +169,58 @@ class SchoolProvisioningService
     }
 
     /**
-     * Generate a unique database name for the school.
-     *
-     * @param string $schoolName
-     * @return string
+     * Generate a unique Finance tenant DB name with the server prefix.
      */
     protected function generateDatabaseName(string $schoolName): string
     {
-        // Get the next ID (count + 1)
-        $count = School::count();
-        $nextId = $count + 1;
-        
-        return 'darasa_school_' . str_pad($nextId, 3, '0', STR_PAD_LEFT);
+        $prefix = config('directadmin.db_prefix', '');
+        $slug   = substr(Str::slug($schoolName, '_'), 0, 30);
+        $count  = School::count() + 1;
+        return $prefix . 'school_' . str_pad($count, 3, '0', STR_PAD_LEFT) . '_' . $slug;
+    }
+
+    /**
+     * Generate a unique Academics tenant DB name with the server prefix.
+     */
+    protected function generateAcademicsDbName(string $schoolName): string
+    {
+        $prefix = config('directadmin.db_prefix', '');
+        $slug   = substr(Str::slug($schoolName, '_'), 0, 25);
+        $count  = School::count() + 1;
+        return $prefix . 'acad_' . str_pad($count, 3, '0', STR_PAD_LEFT) . '_' . $slug;
+    }
+
+    /**
+     * Run Academics migrations against a newly created Academics tenant DB.
+     */
+    protected function runAcademicsMigrations(string $academicsDb, School $school): void
+    {
+        $academicsPath = config('services.academics.path');
+        if (!$academicsPath || !is_dir($academicsPath)) {
+            Log::warning("Academics migrations skipped — ACADEMICS_APP_PATH not set or invalid.");
+            return;
+        }
+
+        // Temporarily configure an academics_tenant connection
+        config([
+            'database.connections.academics_tenant' => array_merge(
+                config('database.connections.mysql'),
+                ['database' => $academicsDb]
+            )
+        ]);
+        DB::purge('academics_tenant');
+
+        try {
+            Artisan::call('migrate', [
+                '--database' => 'academics_tenant',
+                '--path'     => $academicsPath . '/database/migrations',
+                '--force'    => true,
+            ]);
+            Log::info("Academics migrations done for school {$school->name} on DB {$academicsDb}");
+        } catch (\Exception $e) {
+            Log::error("Academics migrations failed for {$school->name}: " . $e->getMessage());
+            throw $e;
+        }
     }
 
     protected function runTenantMigrations(School $school): void
@@ -289,8 +378,21 @@ class SchoolProvisioningService
                 // Log the activity
                 $this->activityLogger->logSchoolDeletion($school);
 
-                // Drop the database
-                $this->tenantManager->dropDatabase($school->database_name);
+                // Free platform school (purges sequences so code can be reused)
+                if ($school->platform_school_id) {
+                    $this->platformRegistry->freeSchoolCode($school->platform_school_id);
+                    PlatformSchool::find($school->platform_school_id)?->delete();
+                }
+
+                // Drop Finance tenant database
+                if ($school->database_name) {
+                    $this->tenantManager->dropDatabase($school->database_name);
+                }
+
+                // Drop Academics tenant database
+                if ($school->academics_db_name) {
+                    $this->tenantManager->dropDatabase($school->academics_db_name);
+                }
 
                 // Delete school record
                 $school->delete();

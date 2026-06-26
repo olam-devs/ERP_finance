@@ -9,21 +9,6 @@
             font-size: 11px;
             margin: 20px;
         }
-        .header {
-            text-align: center;
-            margin-bottom: 20px;
-            border-bottom: 2px solid #333;
-            padding-bottom: 10px;
-        }
-        .school-name {
-            font-size: 18px;
-            font-weight: bold;
-            margin-bottom: 5px;
-        }
-        .school-info {
-            font-size: 10px;
-            color: #666;
-        }
         .ledger-title {
             font-size: 14px;
             font-weight: bold;
@@ -116,12 +101,7 @@
     </style>
 </head>
 <body>
-    <div class="header">
-        <div class="school-name">{{ $school->school_name ?? 'Darasa Secondary School' }}</div>
-        <div class="school-info">
-            {{ $school->po_box ?? 'P.O. Box 12345' }} | {{ $school->region ?? 'Dar es Salaam' }} | Tel: {{ $school->phone ?? '+255 123 456 789' }}
-        </div>
-    </div>
+    @include('components.pdf-header', ['school' => $school ?? null])
 
     <div class="ledger-title">BOOK LEDGER</div>
 
@@ -147,11 +127,11 @@
                 <th style="width: 9%;">Type</th>
                 <th style="width: 10%;">Voucher No.</th>
                 @if($viewType === 'cash')
-                <th style="width: 10%;">DR (Pay/Out)</th>
-                <th style="width: 10%;">CR (Rec/In)</th>
-                @else
                 <th style="width: 10%;">DR (Rec/In)</th>
                 <th style="width: 10%;">CR (Pay/Out)</th>
+                @else
+                <th style="width: 10%;">DR (Pay/Out)</th>
+                <th style="width: 10%;">CR (Rec/In)</th>
                 @endif
                 <th style="width: 10%;">Balance (TSh)</th>
                 <th style="width: 13%;">Notes</th>

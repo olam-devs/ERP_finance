@@ -3,9 +3,8 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
 
-class Student extends Model
+class Student extends BaseModel
 {
     use HasFactory;
 
@@ -29,10 +28,12 @@ class Student extends Model
         'parent_phone_2',
         'admission_date',
         'status',
+        'advance_balance',
     ];
 
     protected $casts = [
         'admission_date' => 'date',
+        'advance_balance' => 'decimal:2',
     ];
 
     // Relationships
@@ -73,7 +74,7 @@ class Student extends Model
 
     public function suspenseAccounts()
     {
-        return $this->hasMany(SuspenseAccount::class);
+        return $this->hasMany(SuspenseAccount::class, 'resolved_student_id');
     }
 
     public function scholarships()
@@ -95,6 +96,7 @@ class Student extends Model
         if ($academicYearId) {
             $query->where('academic_year_id', $academicYearId);
         }
+
         return $query->exists();
     }
 
@@ -107,6 +109,7 @@ class Student extends Model
         if ($academicYearId) {
             $query->where('academic_year_id', $academicYearId);
         }
+
         return $query->first();
     }
 

@@ -3,9 +3,11 @@
 namespace App\Providers;
 
 use App\Models\Central\School;
-use Illuminate\Support\ServiceProvider;
+use App\Models\SchoolSetting;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\View;
+use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -27,6 +29,18 @@ class AppServiceProvider extends ServiceProvider
     {
         // Fix for MySQL key length limit on older versions
         Schema::defaultStringLength(191);
+
+        View::composer('layouts.accountant', function ($view) {
+            /** @var \Illuminate\View\View $view */
+            $data = $view->getData();
+            if (empty($data['settings'])) {
+                try {
+                    $view->with('settings', SchoolSetting::getSettings());
+                } catch (\Throwable $e) {
+                    $view->with('settings', null);
+                }
+            }
+        });
     }
 
     /**
@@ -38,7 +52,7 @@ class AppServiceProvider extends ServiceProvider
             // Get the database name from environment
             $dbName = env('TENANT_DB_DATABASE') ?: env('DB_DATABASE');
 
-            if (!$dbName) {
+            if (! $dbName) {
                 return null;
             }
 
@@ -46,7 +60,7 @@ class AppServiceProvider extends ServiceProvider
             $school = School::on('central')->where('database_name', $dbName)->first();
 
             // Fallback: if only one school exists, use it
-            if (!$school) {
+            if (! $school) {
                 $count = School::on('central')->count();
                 if ($count === 1) {
                     $school = School::on('central')->first();
@@ -56,7 +70,8 @@ class AppServiceProvider extends ServiceProvider
             return $school;
         } catch (\Exception $e) {
             // Log error but don't crash - central database might not be available
-            Log::debug("Could not resolve current school: " . $e->getMessage());
+            Log::debug('Could not resolve current school: '.$e->getMessage());
+
             return null;
         }
     }

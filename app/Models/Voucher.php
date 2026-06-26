@@ -3,9 +3,8 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
 
-class Voucher extends Model
+class Voucher extends BaseModel
 {
     use HasFactory;
 
@@ -22,19 +21,29 @@ class Voucher extends Model
         'particular_id',
         'book_id',
         'voucher_type',
+        'voucher_no',
         'voucher_number',
         'debit',
         'credit',
         'payment_by_receipt_to',
         'notes',
         'created_by',
+        'voided_at',
+        'voided_by',
+        'void_reason',
     ];
 
     protected $casts = [
         'date' => 'date',
         'debit' => 'decimal:2',
         'credit' => 'decimal:2',
+        'voided_at' => 'datetime',
     ];
+
+    public function isVoided(): bool
+    {
+        return ! is_null($this->voided_at);
+    }
 
     // Relationships
     public function student()
@@ -83,16 +92,27 @@ class Voucher extends Model
         parent::boot();
 
         static::creating(function ($voucher) {
-            if (!$voucher->voucher_number) {
+            if (! $voucher->voucher_number && ! $voucher->voucher_no) {
                 $lastVoucher = static::where('voucher_type', $voucher->voucher_type)
                     ->latest('id')
                     ->first();
 
-                $lastNumber = $lastVoucher ? (int) substr($lastVoucher->voucher_number, -6) : 0;
+                $lastRaw = $lastVoucher?->voucher_number ?: $lastVoucher?->voucher_no;
+                $lastNumber = $lastRaw ? (int) substr($lastRaw, -6) : 0;
                 $newNumber = $lastNumber + 1;
 
                 $prefix = strtoupper(substr($voucher->voucher_type, 0, 3));
-                $voucher->voucher_number = $prefix . str_pad($newNumber, 6, '0', STR_PAD_LEFT);
+                $generated = $prefix.str_pad($newNumber, 6, '0', STR_PAD_LEFT);
+                $voucher->voucher_number = $generated;
+                $voucher->voucher_no = $generated;
+            } else {
+                // Keep the legacy + new column in sync if only one is set.
+                if ($voucher->voucher_number && ! $voucher->voucher_no) {
+                    $voucher->voucher_no = $voucher->voucher_number;
+                }
+                if ($voucher->voucher_no && ! $voucher->voucher_number) {
+                    $voucher->voucher_number = $voucher->voucher_no;
+                }
             }
         });
     }

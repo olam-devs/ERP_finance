@@ -3,9 +3,8 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
 
-class SuspenseAccount extends Model
+class SuspenseAccount extends BaseModel
 {
     use HasFactory;
 
@@ -24,7 +23,7 @@ class SuspenseAccount extends Model
         'reference_number',
         'date',
         'resolved',
-        'student_id',
+        'resolved_student_id',
         'voucher_id',
         'resolved_at',
         'resolved_by',
@@ -47,7 +46,7 @@ class SuspenseAccount extends Model
 
     public function student()
     {
-        return $this->belongsTo(Student::class);
+        return $this->belongsTo(Student::class, 'resolved_student_id');
     }
 
     public function voucher()

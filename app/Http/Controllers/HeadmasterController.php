@@ -2,13 +2,13 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Student;
-use App\Models\Particular;
-use App\Models\Voucher;
 use App\Models\Book;
+use App\Models\Particular;
+use App\Models\SchoolSetting;
+use App\Models\Student;
+use App\Models\Voucher;
 use App\Services\ActivityLogger;
 use App\Traits\HasSchoolContext;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class HeadmasterController extends Controller
@@ -22,9 +22,6 @@ class HeadmasterController extends Controller
         $this->activityLogger = $activityLogger;
     }
 
-    /**
-     * Log headmaster action.
-     */
     protected function logAction(string $action, string $description): void
     {
         $schoolId = $this->getSchoolId();
@@ -42,32 +39,39 @@ class HeadmasterController extends Controller
         }
     }
 
-    /**
-     * Show headmaster dashboard.
-     */
+    protected function headmasterModule(string $view, array $extra = [])
+    {
+        return view($view, array_merge([
+            'settings' => SchoolSetting::getSettings(),
+            'portalLayout' => 'layouts.headmaster',
+            'readOnly' => true,
+        ], $extra));
+    }
+
     public function dashboard()
     {
-        $settings = \App\Models\SchoolSetting::getSettings();
-        
-        // Get summary statistics (same as accountant dashboard)
+        $settings = SchoolSetting::getSettings();
+
         $totalStudents = Student::count();
         $totalBooks = Book::where('is_active', true)->count();
         $totalParticulars = Particular::count();
-        
-        // Fee collection statistics
-        $totalFeesExpected = Voucher::where('voucher_type', 'debit')
-            ->sum('amount');
-        $totalFeesCollected = Voucher::where('voucher_type', 'credit')
-            ->sum('amount');
-        $collectionRate = $totalFeesExpected > 0 
-            ? ($totalFeesCollected / $totalFeesExpected) * 100 
+
+        $totalFeesExpected = (float) DB::table('particular_student')
+            ->selectRaw('COALESCE(SUM(COALESCE(sales, 0) + COALESCE(debit, 0)), 0) as total')
+            ->value('total');
+        $totalFeesCollected = (float) DB::table('particular_student')
+            ->selectRaw('COALESCE(SUM(COALESCE(credit, 0)), 0) as total')
+            ->value('total');
+        $collectionRate = $totalFeesExpected > 0
+            ? ($totalFeesCollected / $totalFeesExpected) * 100
             : 0;
 
-        // Recent transactions
         $recentTransactions = Voucher::with(['student', 'particular', 'book'])
             ->latest()
             ->take(10)
             ->get();
+
+        $school = $this->getCurrentSchool();
 
         return view('headmaster.dashboard', compact(
             'settings',
@@ -77,43 +81,33 @@ class HeadmasterController extends Controller
             'totalFeesExpected',
             'totalFeesCollected',
             'collectionRate',
-            'recentTransactions'
+            'recentTransactions',
+            'school'
         ));
     }
 
-    /**
-     * Show student ledgers.
-     */
     public function ledgers()
     {
-        $settings = \App\Models\SchoolSetting::getSettings();
-        return view('headmaster.ledgers', compact('settings'));
+        return $this->headmasterModule('admin.accountant.modules.ledgers');
     }
 
-    /**
-     * Show particular ledgers.
-     */
     public function particularLedger()
     {
-        $settings = \App\Models\SchoolSetting::getSettings();
-        return view('headmaster.particular-ledger', compact('settings'));
+        return $this->headmasterModule('admin.accountant.modules.particular-ledger');
     }
 
-    /**
-     * Show overdue amounts.
-     */
     public function overdue()
     {
-        $settings = \App\Models\SchoolSetting::getSettings();
-        return view('headmaster.overdue', compact('settings'));
+        return $this->headmasterModule('admin.accountant.modules.overdue');
     }
 
-    /**
-     * Show invoices.
-     */
     public function invoices()
     {
-        $settings = \App\Models\SchoolSetting::getSettings();
-        return view('headmaster.invoices', compact('settings'));
+        $classes = \App\Models\SchoolClass::where('is_active', true)->orderBy('display_order')->get();
+
+        return $this->headmasterModule('admin.accountant.modules.invoices', [
+            'classes' => $classes,
+            'invoicePdfBase' => '/headmaster/invoices',
+        ]);
     }
 }

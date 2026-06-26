@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\SuperAdmin;
 
 use App\Http\Controllers\Controller;
-use App\Models\Central\SuperAdmin;
+use App\Models\Platform\PlatformSuperAdmin as SuperAdmin;
 use App\Services\ActivityLogger;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -34,7 +34,7 @@ class SuperAdminManagementController extends Controller
     {
         $request->validate([
             'name' => 'required|string|max:255',
-            'email' => 'required|email|unique:super_admins,email',
+            'email' => 'required|email|unique:platform.platform_super_admins,email',
             'password' => 'required|string|min:8|confirmed',
             'master_password' => 'required|string|min:8',
         ]);
@@ -64,7 +64,7 @@ class SuperAdminManagementController extends Controller
     {
         $request->validate([
             'name' => 'required|string|max:255',
-            'email' => 'required|email|unique:super_admins,email,' . $superAdmin->id,
+            'email' => 'required|email|unique:platform.platform_super_admins,email,' . $superAdmin->id,
         ]);
 
         $superAdmin->update([

@@ -36,6 +36,8 @@ class SchoolAccountant extends Authenticatable
         'password',
         'is_active',
         'is_primary',
+        'can_edit_history',
+        'can_view_logs',
     ];
 
     /**
@@ -60,6 +62,8 @@ class SchoolAccountant extends Authenticatable
             'password' => 'hashed',
             'is_active' => 'boolean',
             'is_primary' => 'boolean',
+            'can_edit_history' => 'boolean',
+            'can_view_logs' => 'boolean',
         ];
     }
 

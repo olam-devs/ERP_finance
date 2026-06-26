@@ -2,10 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Book;
 use App\Models\Student;
 use App\Models\Voucher;
-use App\Models\Book;
-use App\Models\Particular;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -23,7 +22,7 @@ class ReportController extends Controller
 
         $income = Voucher::whereBetween('date', [$dateFrom, $dateTo])
             ->where('voucher_type', 'Receipt')
-            ->sum('credit');
+            ->sum('debit');
 
         $expenses = Voucher::whereBetween('date', [$dateFrom, $dateTo])
             ->where('voucher_type', 'Payment')
@@ -63,7 +62,7 @@ class ReportController extends Controller
         $dateFrom = $request->get('date_from', now()->startOfYear());
         $dateTo = $request->get('date_to', now()->endOfYear());
 
-        $books = Book::all()->map(function($book) use ($dateFrom, $dateTo) {
+        $books = Book::all()->map(function ($book) use ($dateFrom, $dateTo) {
             $debit = Voucher::where('book_id', $book->id)
                 ->whereBetween('date', [$dateFrom, $dateTo])
                 ->sum('debit');
@@ -104,10 +103,10 @@ class ReportController extends Controller
             ->with(['student', 'particular'])
             ->get()
             ->groupBy('particular_id')
-            ->map(function($group) {
+            ->map(function ($group) {
                 return [
                     'particular' => $group->first()->particular->name ?? 'N/A',
-                    'total_collected' => $group->sum('credit'),
+                    'total_collected' => $group->sum('debit'),
                     'transaction_count' => $group->count(),
                 ];
             })
@@ -130,7 +129,7 @@ class ReportController extends Controller
         $students = Student::with(['schoolClass', 'particulars'])
             ->where('status', 'active')
             ->get()
-            ->map(function($student) {
+            ->map(function ($student) {
                 $totalSales = $student->particulars->sum('pivot.sales');
                 $totalCredit = $student->particulars->sum('pivot.credit');
                 $balance = $totalSales - $totalCredit;
@@ -162,7 +161,7 @@ class ReportController extends Controller
 
     public function studentStatement($studentId = null)
     {
-        if (!$studentId) {
+        if (! $studentId) {
             return response()->json(['error' => 'Student ID required'], 400);
         }
 
@@ -177,7 +176,7 @@ class ReportController extends Controller
             'student' => $student,
             'total_sales' => $student->particulars->sum('pivot.sales'),
             'total_paid' => $student->particulars->sum('pivot.credit'),
-            'balance' => $student->particulars->sum(function($p) {
+            'balance' => $student->particulars->sum(function ($p) {
                 return $p->pivot->sales - $p->pivot->credit;
             }),
             'vouchers' => $vouchers,

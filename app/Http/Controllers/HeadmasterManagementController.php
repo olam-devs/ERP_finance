@@ -45,6 +45,7 @@ class HeadmasterManagementController extends Controller
             'registration_number' => 'required|string|unique:headmasters,registration_number',
             'email' => 'nullable|email|unique:headmasters,email',
             'phone' => 'nullable|string|max:20',
+            'password' => 'nullable|string|min:6|confirmed',
         ]);
 
         $headmaster = Headmaster::create([
@@ -52,6 +53,7 @@ class HeadmasterManagementController extends Controller
             'registration_number' => $request->registration_number,
             'email' => $request->email,
             'phone' => $request->phone,
+            'password' => $request->filled('password') ? $request->password : null,
             'is_active' => true,
         ]);
 
@@ -98,6 +100,28 @@ class HeadmasterManagementController extends Controller
         }
 
         return back()->with('success', 'Headmaster updated successfully!');
+    }
+
+    /**
+     * Reset headmaster portal password.
+     */
+    public function resetPassword(Request $request, Headmaster $headmaster)
+    {
+        $request->validate([
+            'new_password' => 'required|string|min:6|confirmed',
+        ]);
+
+        $headmaster->update(['password' => $request->new_password]);
+
+        $schoolId = $this->getSchoolId();
+        if ($schoolId && auth()->check()) {
+            $this->activityLogger->logHeadmasterAction(
+                $schoolId, auth()->user()->name, auth()->id(),
+                'password_reset', "Reset portal password for headmaster: {$headmaster->name}"
+            );
+        }
+
+        return back()->with('success', "Password reset for {$headmaster->name}.");
     }
 
     /**

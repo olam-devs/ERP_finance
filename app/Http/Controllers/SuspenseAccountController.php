@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\SuspenseAccount;
 use App\Models\Book;
 use App\Models\Student;
+use App\Models\SuspenseAccount;
 use App\Models\Voucher;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -19,7 +19,7 @@ class SuspenseAccountController extends Controller
             ->get();
 
         // Calculate summary totals
-        $totalUnresolved = $suspenseAccounts->sum(function($suspense) {
+        $totalUnresolved = $suspenseAccounts->sum(function ($suspense) {
             return $suspense->getUnresolvedAmount();
         });
 
@@ -30,7 +30,7 @@ class SuspenseAccountController extends Controller
             'summary' => [
                 'total_unresolved' => $totalUnresolved,
                 'total_resolved' => $totalResolved,
-            ]
+            ],
         ]);
     }
 
@@ -51,18 +51,17 @@ class SuspenseAccountController extends Controller
         DB::beginTransaction();
         try {
             // Create voucher entry for suspense account
-            // This will show as CR in bank view (money received in bank)
-            // and DR in cash view (money going out from cash)
+            // Canonical storage (accountant view): money received -> DR (debit)
             $voucher = Voucher::create([
                 'date' => $validated['date'],
                 'student_id' => null,
                 'particular_id' => null,
                 'book_id' => $validated['book_id'],
-                'voucher_type' => 'Receipt', // Receipt type for CR in bank view
-                'debit' => 0,
-                'credit' => $validated['amount'],
+                'voucher_type' => 'Receipt',
+                'debit' => $validated['amount'],
+                'credit' => 0,
                 'payment_by_receipt_to' => 'Suspense Account',
-                'notes' => $validated['description'] . (isset($validated['reference_number']) ? ' (Ref: ' . $validated['reference_number'] . ')' : ''),
+                'notes' => $validated['description'].(isset($validated['reference_number']) ? ' (Ref: '.$validated['reference_number'].')' : ''),
                 'created_by' => auth()->id(),
             ]);
 
@@ -75,8 +74,9 @@ class SuspenseAccountController extends Controller
             return response()->json($suspense->load('voucher'), 201);
         } catch (\Exception $e) {
             DB::rollBack();
+
             return response()->json([
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -84,6 +84,7 @@ class SuspenseAccountController extends Controller
     public function show($id)
     {
         $suspense = SuspenseAccount::with(['book', 'student', 'voucher'])->findOrFail($id);
+
         return response()->json($suspense);
     }
 
@@ -93,7 +94,7 @@ class SuspenseAccountController extends Controller
 
         if ($suspense->resolved) {
             return response()->json([
-                'error' => 'Cannot update resolved suspense account'
+                'error' => 'Cannot update resolved suspense account',
             ], 400);
         }
 
@@ -115,14 +116,14 @@ class SuspenseAccountController extends Controller
 
         if ($suspense->resolved) {
             return response()->json([
-                'error' => 'Cannot delete resolved suspense account'
+                'error' => 'Cannot delete resolved suspense account',
             ], 400);
         }
 
         $suspense->delete();
 
         return response()->json([
-            'message' => 'Suspense account deleted successfully'
+            'message' => 'Suspense account deleted successfully',
         ]);
     }
 
@@ -132,7 +133,7 @@ class SuspenseAccountController extends Controller
 
         if ($suspense->resolved) {
             return response()->json([
-                'error' => 'Suspense account already resolved'
+                'error' => 'Suspense account already resolved',
             ], 400);
         }
 
@@ -148,32 +149,31 @@ class SuspenseAccountController extends Controller
         DB::beginTransaction();
         try {
             // Step 1: Create balancing/reversal entry to reverse the original suspense entry
-            // Original entry was CR in bank view (Receipt type), so we reverse it with DR (Payment type)
-            // This will show as DR in bank view and CR in cash view
+            // We want a net-zero change to the book for the resolution operation:
+            // create a CR (Payment) for the amount being resolved.
             $balancingVoucher = Voucher::create([
                 'date' => now(),
                 'student_id' => null,
                 'particular_id' => null,
                 'book_id' => $suspense->book_id,
-                'voucher_type' => 'Payment', // Payment type for DR in bank view (reversal)
-                'debit' => $amountToResolve,
-                'credit' => 0,
+                'voucher_type' => 'Payment',
+                'debit' => 0,
+                'credit' => $amountToResolve,
                 'payment_by_receipt_to' => 'Suspense Reversal',
                 'notes' => 'Balancing entry for suspense resolution',
                 'created_by' => auth()->id(),
             ]);
 
             // Step 2: Create normal student receipt entry
-            // Receipt vouchers should be CREDIT in bank view (bank account credited)
-            // and DEBIT in cash view (cash received) - the view reversal handles this
+            // Canonical storage: Receipt is DR (debit)
             $receiptVoucher = Voucher::create([
                 'date' => now(),
                 'student_id' => $validated['student_id'],
                 'particular_id' => $validated['particular_id'],
                 'book_id' => $suspense->book_id,
                 'voucher_type' => 'Receipt',
-                'debit' => 0,
-                'credit' => $amountToResolve,
+                'debit' => $amountToResolve,
+                'credit' => 0,
                 'payment_by_receipt_to' => 'Suspense Resolution',
                 'notes' => $validated['notes'] ?? 'Resolved from suspense account',
                 'created_by' => auth()->id(),
@@ -184,7 +184,7 @@ class SuspenseAccountController extends Controller
             $suspense->update([
                 'resolved_amount' => $newResolvedAmount,
                 'resolved' => $newResolvedAmount >= $suspense->amount,
-                'student_id' => $validated['student_id'],
+                'resolved_student_id' => $validated['student_id'],
                 'voucher_id' => $receiptVoucher->id, // Store the receipt voucher ID
                 'resolved_at' => now(),
                 'resolved_by' => auth()->id(),
@@ -212,8 +212,9 @@ class SuspenseAccountController extends Controller
             ]);
         } catch (\Exception $e) {
             DB::rollBack();
+
             return response()->json([
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -224,15 +225,17 @@ class SuspenseAccountController extends Controller
             ->with('book')
             ->get();
 
-        $totalUnresolved = $unresolved->sum(function($suspense) {
+        $totalUnresolved = $unresolved->sum(function ($suspense) {
             return $suspense->getUnresolvedAmount();
         });
 
-        $byBook = $unresolved->groupBy('book_id')->map(function($group) {
+        $byBook = $unresolved->groupBy('book_id')->map(function ($group) {
             return [
                 'book' => $group->first()->book,
                 'count' => $group->count(),
-                'total' => $group->sum(function($s) { return $s->getUnresolvedAmount(); }),
+                'total' => $group->sum(function ($s) {
+                    return $s->getUnresolvedAmount();
+                }),
             ];
         })->values();
 

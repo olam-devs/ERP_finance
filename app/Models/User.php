@@ -23,6 +23,8 @@ class User extends Authenticatable
         'password',
         'role',
         'phone',
+        'can_edit_history',
+        'can_view_logs',
     ];
 
     /**
@@ -45,6 +47,8 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'can_edit_history' => 'boolean',
+            'can_view_logs' => 'boolean',
         ];
     }
 }

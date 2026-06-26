@@ -2,10 +2,9 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class Scholarship extends Model
+class Scholarship extends BaseModel
 {
     protected $fillable = [
         'student_id',
@@ -86,6 +85,7 @@ class Scholarship extends Model
         if ($this->original_amount <= 0) {
             return 0;
         }
+
         return round(($this->forgiven_amount / $this->original_amount) * 100, 2);
     }
 

@@ -10,8 +10,8 @@
     <div class="lg:col-span-2">
         <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mb-6">
             <div class="p-8 border-b border-gray-100 text-center">
-                <div class="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <i class="fas fa-file-invoice text-indigo-600 text-2xl"></i>
+                <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-file-invoice text-blue-600 text-2xl"></i>
                 </div>
                 <h3 class="text-xl font-bold text-gray-800" data-translate="invoice-title">Current Outstanding Invoice</h3>
                 <p class="text-gray-500 text-sm mt-1">
@@ -19,7 +19,7 @@
                 </p>
                 
                 <div class="mt-8 flex justify-center gap-4">
-                    <a href="{{ route('parent.invoices.download') }}" class="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-8 rounded-xl transition shadow-lg shadow-indigo-200">
+                    <a href="{{ route('parent.invoices.download') }}" class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-xl transition shadow-lg shadow-blue-200">
                         <i class="fas fa-download"></i> <span data-translate="download-invoice">Download PDF Invoice</span>
                     </a>
                 </div>
@@ -32,7 +32,7 @@
                     @foreach($itemsByYear as $yearData)
                         <div class="mb-6">
                             <!-- Academic Year Header -->
-                            <div class="flex justify-between items-center bg-indigo-600 text-white px-4 py-3 rounded-t-xl">
+                            <div class="flex justify-between items-center bg-blue-600 text-white px-4 py-3 rounded-t-xl">
                                 <span class="font-bold"><i class="fas fa-calendar-alt mr-2"></i>{{ $yearData['year_name'] }}</span>
                                 <span class="text-sm">
                                     @if($yearData['subtotal_balance'] > 0)
@@ -70,9 +70,9 @@
                                 @endforeach
 
                                 <!-- Year Subtotal -->
-                                <div class="bg-indigo-50 p-4 flex justify-between items-center border-t border-indigo-200">
-                                    <span class="font-bold text-indigo-700">Subtotal ({{ $yearData['year_name'] }})</span>
-                                    <span class="font-bold text-indigo-700">TSh {{ number_format($yearData['subtotal_balance']) }}</span>
+                                <div class="bg-blue-50 p-4 flex justify-between items-center border-t border-blue-200">
+                                    <span class="font-bold text-blue-700">Subtotal ({{ $yearData['year_name'] }})</span>
+                                    <span class="font-bold text-blue-700">TSh {{ number_format($yearData['subtotal_balance']) }}</span>
                                 </div>
                             </div>
                         </div>

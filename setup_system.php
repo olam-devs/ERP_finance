@@ -1,11 +1,12 @@
 <?php
 
-require __DIR__ . '/vendor/autoload.php';
+require __DIR__.'/vendor/autoload.php';
 
-$app = require_once __DIR__ . '/bootstrap/app.php';
-$kernel = $app->make(Illuminate\Contracts\Console\Kernel::class);
+$app = require_once __DIR__.'/bootstrap/app.php';
+$kernel = $app->make(Kernel::class);
 $kernel->bootstrap();
 
+use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
@@ -19,8 +20,8 @@ echo "STEP 1: Cleaning database...\n";
 try {
     DB::statement('SET FOREIGN_KEY_CHECKS=0');
     $tables = ['vouchers', 'particular_student', 'particulars', 'students', 'school_classes',
-               'headmasters', 'staff', 'payroll_entries', 'expenses', 'books', 'sms_logs',
-               'suspense_accounts', 'bank_transactions', 'academic_years'];
+        'headmasters', 'staff', 'payroll_entries', 'expenses', 'books', 'sms_logs',
+        'suspense_accounts', 'bank_transactions', 'academic_years'];
     foreach ($tables as $table) {
         if (Schema::hasTable($table)) {
             DB::table($table)->truncate();
@@ -30,7 +31,7 @@ try {
     DB::statement('SET FOREIGN_KEY_CHECKS=1');
     echo "   Database cleaned!\n";
 } catch (Exception $e) {
-    echo "   Warning: " . $e->getMessage() . "\n";
+    echo '   Warning: '.$e->getMessage()."\n";
 }
 
 // Step 2: Update School Settings
@@ -48,7 +49,7 @@ try {
     }
     echo "   School settings configured!\n";
 } catch (Exception $e) {
-    echo "   Error: " . $e->getMessage() . "\n";
+    echo '   Error: '.$e->getMessage()."\n";
 }
 
 // Step 3: Create Academic Years
@@ -60,7 +61,7 @@ try {
     ]);
     echo "   Academic years created!\n";
 } catch (Exception $e) {
-    echo "   Error: " . $e->getMessage() . "\n";
+    echo '   Error: '.$e->getMessage()."\n";
 }
 
 // Step 4: Create Classes
@@ -78,7 +79,7 @@ try {
     foreach ($classes as $idx => $class) {
         $id = DB::table('school_classes')->insertGetId([
             'name' => $class['name'], 'code' => $class['code'], 'level' => $class['level'],
-            'capacity' => 40, 'description' => $class['name'] . ' Class', 'is_active' => true,
+            'capacity' => 40, 'description' => $class['name'].' Class', 'is_active' => true,
             'display_order' => $idx + 1, 'created_at' => now(), 'updated_at' => now(),
         ]);
         $classIds[$class['name']] = $id;
@@ -86,7 +87,7 @@ try {
         echo "   Created: {$class['name']}\n";
     }
 } catch (Exception $e) {
-    echo "   Error: " . $e->getMessage() . "\n";
+    echo '   Error: '.$e->getMessage()."\n";
 }
 
 // Step 5: Create Students
@@ -109,9 +110,9 @@ try {
     foreach ($students as $student) {
         $classId = $classIds[$student['class']] ?? null;
         $id = DB::table('students')->insertGetId([
-            'name' => $student['name'], 'student_reg_no' => 'S' . $regNum, 'gender' => $student['gender'],
+            'name' => $student['name'], 'student_reg_no' => 'S'.$regNum, 'gender' => $student['gender'],
             'class_id' => $classId, 'class' => $student['class'], 'phone' => $student['phone'],
-            'parent_phone_1' => $student['phone'], 'status' => 'active', 'admission_date' => date('Y-m-d'),
+            'parent_phone_1' => $student['phone'], 'status' => 'active',
             'created_at' => now(), 'updated_at' => now(),
         ]);
         $studentIds[] = $id;
@@ -119,7 +120,7 @@ try {
         $regNum++;
     }
 } catch (Exception $e) {
-    echo "   Error: " . $e->getMessage() . "\n";
+    echo '   Error: '.$e->getMessage()."\n";
 }
 
 // Step 6: Create Headmaster
@@ -132,7 +133,7 @@ try {
     ]);
     echo "   Headmaster created: HM001\n";
 } catch (Exception $e) {
-    echo "   Error: " . $e->getMessage() . "\n";
+    echo '   Error: '.$e->getMessage()."\n";
 }
 
 // Step 7: Create Books
@@ -149,7 +150,7 @@ try {
     ]);
     echo "   Cash books created!\n";
 } catch (Exception $e) {
-    echo "   Error: " . $e->getMessage() . "\n";
+    echo '   Error: '.$e->getMessage()."\n";
 }
 
 // Step 8: Create Fee Particulars (with JSON class_names)
@@ -176,10 +177,10 @@ try {
         ]);
         $particularIds[$p['name']] = $id;
         $particularAmounts[$id] = $p['amount'];
-        echo "   Created: {$p['name']} - TZS " . number_format($p['amount']) . "\n";
+        echo "   Created: {$p['name']} - TZS ".number_format($p['amount'])."\n";
     }
 } catch (Exception $e) {
-    echo "   Error: " . $e->getMessage() . "\n";
+    echo '   Error: '.$e->getMessage()."\n";
 }
 
 // Step 9: Assign fees to students
@@ -199,9 +200,9 @@ try {
     }
     $totalPerStudent = array_sum($particularAmounts);
     echo "   Fees assigned to all 10 students!\n";
-    echo "   Total fees per student: TZS " . number_format($totalPerStudent) . "\n";
+    echo '   Total fees per student: TZS '.number_format($totalPerStudent)."\n";
 } catch (Exception $e) {
-    echo "   Error: " . $e->getMessage() . "\n";
+    echo '   Error: '.$e->getMessage()."\n";
 }
 
 // Step 10: Add sample payments (vouchers with correct columns)
@@ -222,7 +223,9 @@ try {
     ];
 
     foreach ($paymentData as $payment) {
-        if (!isset($studentIds[$payment['idx']])) continue;
+        if (! isset($studentIds[$payment['idx']])) {
+            continue;
+        }
         $studentId = $studentIds[$payment['idx']];
         $student = DB::table('students')->find($studentId);
         $paymentDate = date('Y-m-d', strtotime("-{$payment['days']} days"));
@@ -233,13 +236,15 @@ try {
             ->first();
 
         // Create voucher with correct columns
+        $voucherRef = 'VCH'.str_pad((string) rand(1000, 9999), 6, '0', STR_PAD_LEFT);
         DB::table('vouchers')->insert([
             'date' => $paymentDate,
             'student_id' => $studentId,
             'particular_id' => $feeAssignment->particular_id ?? 1,
             'book_id' => $bookId,
             'voucher_type' => 'receipt',
-            'voucher_number' => 'VCH' . str_pad(rand(1000, 9999), 6, '0', STR_PAD_LEFT),
+            'voucher_no' => $voucherRef,
+            'voucher_number' => $voucherRef,
             'debit' => 0,
             'credit' => $payment['amount'],
             'payment_by_receipt_to' => $student->name,
@@ -256,17 +261,19 @@ try {
             ->get();
 
         foreach ($feeAssignments as $fee) {
-            if ($remainingAmount <= 0) break;
+            if ($remainingAmount <= 0) {
+                break;
+            }
             $outstanding = $fee->sales - $fee->credit;
             $paymentAmount = min($remainingAmount, $outstanding);
             DB::table('particular_student')->where('id', $fee->id)->increment('credit', $paymentAmount);
             $remainingAmount -= $paymentAmount;
         }
 
-        echo "   Payment: TZS " . number_format($payment['amount']) . " by {$student->name}\n";
+        echo '   Payment: TZS '.number_format($payment['amount'])." by {$student->name}\n";
     }
 } catch (Exception $e) {
-    echo "   Error: " . $e->getMessage() . "\n";
+    echo '   Error: '.$e->getMessage()."\n";
 }
 
 // Step 11: Add sample expenses (with correct columns)
@@ -281,9 +288,12 @@ try {
         ['name' => 'Internet Subscription', 'amount' => 100000],
     ];
     foreach ($expenses as $expense) {
+        $expenseNumber = 'EXP'.str_pad((string) rand(1, 999999), 6, '0', STR_PAD_LEFT);
         DB::table('expenses')->insert([
+            'expense_number' => $expenseNumber,
             'expense_name' => $expense['name'],
-            'transaction_date' => date('Y-m-d', strtotime('-' . rand(1, 20) . ' days')),
+            'category' => 'General',
+            'transaction_date' => date('Y-m-d', strtotime('-'.rand(1, 20).' days')),
             'book_id' => $bookId,
             'amount' => $expense['amount'],
             'description' => $expense['name'],
@@ -291,10 +301,10 @@ try {
             'created_at' => now(),
             'updated_at' => now(),
         ]);
-        echo "   Expense: {$expense['name']} - TZS " . number_format($expense['amount']) . "\n";
+        echo "   Expense: {$expense['name']} - TZS ".number_format($expense['amount'])."\n";
     }
 } catch (Exception $e) {
-    echo "   Error: " . $e->getMessage() . "\n";
+    echo '   Error: '.$e->getMessage()."\n";
 }
 
 // Step 12: Add Staff
@@ -309,29 +319,31 @@ try {
     ];
     foreach ($staffMembers as $idx => $staff) {
         DB::table('staff')->insert([
-            'name' => $staff['name'], 'staff_id' => 'STF' . str_pad($idx + 1, 3, '0', STR_PAD_LEFT),
-            'position' => $staff['position'], 'department' => $staff['dept'], 'monthly_salary' => $staff['salary'],
-            'phone' => '+2557' . rand(10, 99) . rand(100, 999) . rand(100, 999),
-            'email' => strtolower(str_replace([' ', '.', 'Mr', 'Mrs', 'Ms'], '', $staff['name'])) . '@darasa.ac.tz',
-            'bank_name' => 'NMB Bank', 'bank_account' => '123456789' . $idx,
-            'date_joined' => date('Y-m-d', strtotime('-' . rand(30, 365) . ' days')), 'status' => 'active',
+            'name' => $staff['name'], 'employee_id' => 'STF'.str_pad($idx + 1, 3, '0', STR_PAD_LEFT),
+            'position' => $staff['position'], 'department' => $staff['dept'], 'basic_salary' => $staff['salary'],
+            'phone' => '+2557'.rand(10, 99).rand(100, 999).rand(100, 999),
+            'email' => strtolower(str_replace([' ', '.', 'Mr', 'Mrs', 'Ms'], '', $staff['name'])).'@darasa.ac.tz',
+            'bank_name' => 'NMB Bank', 'bank_account' => '123456789'.$idx,
+            'hire_date' => date('Y-m-d', strtotime('-'.rand(30, 365).' days')), 'status' => 'active',
             'created_at' => now(), 'updated_at' => now(),
         ]);
-        echo "   Staff: {$staff['name']} - TZS " . number_format($staff['salary']) . "/month\n";
+        echo "   Staff: {$staff['name']} - TZS ".number_format($staff['salary'])."/month\n";
     }
 } catch (Exception $e) {
-    echo "   Error: " . $e->getMessage() . "\n";
+    echo '   Error: '.$e->getMessage()."\n";
 }
 
 // Step 13: Add SMS Logs (with correct columns)
 echo "\nSTEP 13: Adding sample SMS logs...\n";
 try {
     foreach ($studentIds as $idx => $studentId) {
-        if ($idx >= 5) break; // Only 5 SMS logs
+        if ($idx >= 5) {
+            break;
+        } // Only 5 SMS logs
         $student = DB::table('students')->find($studentId);
         DB::table('sms_logs')->insert([
             'student_id' => $studentId,
-            'sent_by' => 'System',
+            'sent_by' => null,
             'recipient_phone' => $student->phone,
             'message' => 'Fee reminder: Please pay your outstanding balance. Thank you.',
             'status' => ['sent', 'delivered', 'pending'][rand(0, 2)],
@@ -343,7 +355,7 @@ try {
     }
     echo "   Added 5 sample SMS logs\n";
 } catch (Exception $e) {
-    echo "   Error: " . $e->getMessage() . "\n";
+    echo '   Error: '.$e->getMessage()."\n";
 }
 
 // Step 14: Setup Users
@@ -354,7 +366,7 @@ try {
     ]);
     echo "   Accountant: accountant@darasa360.com / password\n";
 } catch (Exception $e) {
-    echo "   Error: " . $e->getMessage() . "\n";
+    echo '   Error: '.$e->getMessage()."\n";
 }
 
 // Step 15: Setup SuperAdmin
@@ -376,9 +388,11 @@ try {
 
     $allAdmins = DB::connection('central')->table('super_admins')->get();
     echo "   SuperAdmins available:\n";
-    foreach ($allAdmins as $a) echo "     - {$a->email} / password\n";
+    foreach ($allAdmins as $a) {
+        echo "     - {$a->email} / password\n";
+    }
 } catch (Exception $e) {
-    echo "   Note: " . $e->getMessage() . "\n";
+    echo '   Note: '.$e->getMessage()."\n";
 }
 
 // Summary
@@ -390,9 +404,9 @@ echo "           SETUP COMPLETE!                  \n";
 echo "============================================\n\n";
 
 echo "FINANCIAL SUMMARY:\n";
-echo "  Total Fees: TZS " . number_format($totalFees) . "\n";
-echo "  Total Payments: TZS " . number_format($totalPayments) . "\n";
-echo "  Outstanding: TZS " . number_format($totalFees - $totalPayments) . "\n\n";
+echo '  Total Fees: TZS '.number_format($totalFees)."\n";
+echo '  Total Payments: TZS '.number_format($totalPayments)."\n";
+echo '  Outstanding: TZS '.number_format($totalFees - $totalPayments)."\n\n";
 
 echo "LOGIN CREDENTIALS:\n";
 echo "==================\n";

@@ -1,64 +1,27 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>Overdue Payments - Darasa Finance</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
-</head>
-<body class="bg-gray-100">
-    @include('components.sidebar')
+@extends($portalLayout ?? 'layouts.accountant')
 
-    <!-- Header -->
-    <nav class="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-4 shadow-lg mb-6 sticky top-0 z-40">
-        <div class="container mx-auto flex justify-between items-center">
-            <div class="flex items-center gap-4">
-                <!-- Menu Button -->
-                <button onclick="toggleSidebar()" class="hover:bg-white hover:bg-opacity-20 p-2 rounded transition">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
-                    </svg>
-                </button>
-                <!-- Clickable Logo -->
-                <a href="{{ route('accountant.dashboard') }}" class="flex items-center gap-2 hover:opacity-80 transition">
-                    @if($settings->logo_path && file_exists(public_path('storage/' . $settings->logo_path)))
-                        <img src="{{ asset('storage/' . $settings->logo_path) }}" alt="School Logo" class="w-10 h-10 rounded-lg bg-white p-1 object-contain">
-                    @else
-                        <div class="bg-white bg-opacity-20 p-2 rounded-lg">
-                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
-                            </svg>
-                        </div>
-                    @endif
-                    <h1 class="text-2xl font-bold">Overdue Payments</h1>
-                </a>
-            </div>
-            <div class="flex gap-3 items-center">
-                <form method="POST" action="{{ route('logout') }}">
-                    @csrf
-                    <button type="submit" class="bg-red-500 hover:bg-red-600 px-4 py-2 rounded transition">Logout</button>
-                </form>
-            </div>
-        </div>
-    </nav>
+@section('title', 'Overdue — Darasa Finance')
+@section('page_title', 'Overdue')
 
-    <!-- Module Content -->
-    <div class="container mx-auto p-6">
+@section('content')
+<!-- Module Content -->
+    <div class="w-full p-6">
         <div>
             <div class="flex justify-between items-center mb-6">
                 <h2 class="text-3xl font-bold text-red-600">Overdue Payments</h2>
                 <div class="flex gap-3">
+                    @if(empty($readOnly))
                     <button onclick="openSmsModal()" class="bg-purple-500 hover:bg-purple-600 text-white px-6 py-2 rounded font-bold transition">
                         Send SMS Reminders
                     </button>
+                    @endif
                     <button onclick="loadOverdueData()" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded transition">
                         Refresh
                     </button>
                 </div>
             </div>
 
+            @if(empty($readOnly))
             <!-- Enhanced SMS Reminder Modal -->
             <div id="smsModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
                 <div class="bg-white rounded-lg p-6 max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
@@ -133,14 +96,16 @@
                     </button>
                 </div>
             </div>
+            @endif
 
             <div id="overdueContent"></div>
         </div>
     </div>
+@endsection
 
-    <!-- Module Scripts -->
+@push('scripts')
     <script>
-        const API_BASE = '/api';
+const API_BASE = '/api';
 
         // Configure axios
         axios.defaults.headers.common['X-CSRF-TOKEN'] = document.querySelector('meta[name="csrf-token"]').content;
@@ -515,5 +480,4 @@ Darasa Finance`
             });
         }
     </script>
-</body>
-</html>
+@endpush

@@ -3,36 +3,37 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
 
-class PayrollEntry extends Model
+class PayrollEntry extends BaseModel
 {
     use HasFactory;
 
-    /**
-     * The connection name for the model.
-     *
-     * @var string|null
-     */
     protected $connection = 'tenant';
 
     protected $fillable = [
         'staff_id',
-        'amount',
-        'month',
-        'year',
-        'payment_date',
         'book_id',
         'voucher_id',
+        'period',
+        'month',
+        'year',
+        'gross_salary',
+        'total_deductions',
+        'net_salary',
+        'status',
+        'payment_date',
         'payment_method',
         'reference_number',
         'notes',
         'created_by',
+        'approved_by',
     ];
 
     protected $casts = [
-        'amount' => 'decimal:2',
-        'payment_date' => 'date',
+        'gross_salary'     => 'decimal:2',
+        'total_deductions' => 'decimal:2',
+        'net_salary'       => 'decimal:2',
+        'payment_date'     => 'date',
     ];
 
     // Relationships
@@ -51,8 +52,18 @@ class PayrollEntry extends Model
         return $this->belongsTo(Voucher::class);
     }
 
+    public function deductions()
+    {
+        return $this->hasMany(PayrollEntryDeduction::class);
+    }
+
     public function creator()
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function approver()
+    {
+        return $this->belongsTo(User::class, 'approved_by');
     }
 }

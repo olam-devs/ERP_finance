@@ -72,7 +72,7 @@ return [
 
         'superadmins' => [
             'driver' => 'eloquent',
-            'model' => App\Models\Central\SuperAdmin::class,
+            'model' => App\Models\Platform\PlatformSuperAdmin::class,
         ],
 
         // 'users' => [

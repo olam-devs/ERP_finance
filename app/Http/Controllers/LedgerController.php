@@ -2,20 +2,71 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Student;
+use App\Models\AcademicYear;
+use App\Models\BankAccount;
 use App\Models\Book;
 use App\Models\Particular;
-use App\Models\Voucher;
+use App\Models\Scholarship;
 use App\Models\SchoolClass;
 use App\Models\SchoolSetting;
-use App\Models\AcademicYear;
-use App\Models\Scholarship;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
+use App\Models\Student;
+use App\Models\SuspenseAccount;
+use App\Models\Voucher;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Carbon\Carbon;
+use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 
 class LedgerController extends Controller
 {
+    /**
+     * @return array{particularDisplay: string, is_advance_used: bool, is_advance_deposit: bool}
+     */
+    protected function resolveLedgerParticularMeta(Voucher $voucher): array
+    {
+        if ($voucher->payment_by_receipt_to === 'Advance Used') {
+            return [
+                'particularDisplay' => ($voucher->particular?->name ?? 'Fee').' — paid from advance',
+                'is_advance_used' => true,
+                'is_advance_deposit' => false,
+            ];
+        }
+
+        $particularDisplay = $voucher->particular?->name ?? 'N/A';
+        $isAdvanceDeposit = false;
+
+        if ($voucher->particular_id === null) {
+            if ($voucher->voucher_type === 'Payment' && $voucher->payment_by_receipt_to && $voucher->payment_by_receipt_to !== 'Suspense Reversal') {
+                $particularDisplay = 'Expense';
+            } elseif ($voucher->payment_by_receipt_to === 'Suspense Account') {
+                $particularDisplay = 'Suspense Account';
+            } elseif ($voucher->payment_by_receipt_to === 'Suspense Reversal') {
+                $particularDisplay = 'Suspense Reversal';
+            } elseif ($voucher->payment_by_receipt_to === 'Suspense Resolution') {
+                $particularDisplay = 'Suspense Resolution';
+            } elseif ($voucher->payment_by_receipt_to === 'Bank Deposit') {
+                $particularDisplay = 'Bank Deposit';
+            } elseif ($voucher->payment_by_receipt_to === 'Bank Withdrawal') {
+                $particularDisplay = 'Bank Withdrawal';
+            } elseif ($voucher->payment_by_receipt_to === 'Monthly Bank Cut') {
+                $particularDisplay = 'Monthly Bank Cut';
+            } elseif ($voucher->payment_by_receipt_to === 'Bank Transaction Fee') {
+                $particularDisplay = 'Bank Transaction Fee';
+            } elseif ($voucher->payment_by_receipt_to === 'Reconciliation Adjustment') {
+                $particularDisplay = 'Reconciliation Adjustment';
+            } elseif ($voucher->payment_by_receipt_to === 'Advance Payment') {
+                $particularDisplay = 'Advance Payment (held for student)';
+                $isAdvanceDeposit = true;
+            }
+        }
+
+        return [
+            'particularDisplay' => $particularDisplay,
+            'is_advance_used' => false,
+            'is_advance_deposit' => $isAdvanceDeposit,
+        ];
+    }
+
     public function studentLedger($studentId, Request $request)
     {
         $student = Student::with('schoolClass')->findOrFail($studentId);
@@ -31,10 +82,6 @@ class LedgerController extends Controller
                 ->where('date', '<', $dateFrom)
                 ->selectRaw('SUM(debit) - SUM(credit) as balance')
                 ->value('balance') ?? 0;
-
-            // Add sales from particulars
-            $salesBeforeDate = $student->particulars()->sum('particular_student.sales');
-            $openingBalance += $salesBeforeDate;
         }
 
         // Get voucher entries
@@ -61,7 +108,7 @@ class LedgerController extends Controller
 
             $entry = [
                 'date' => $voucher->date,
-                'particular' => $voucher->particular->name ?? 'N/A',
+                'particular' => $voucher->particular?->name ?? 'N/A',
                 'voucher_type' => $voucher->voucher_type,
                 'voucher_number' => $voucher->voucher_number,
                 'debit' => $voucher->debit,
@@ -112,7 +159,7 @@ class LedgerController extends Controller
         $perPage = $request->get('per_page', 15); // Default 15 entries per page
 
         $totalOpeningBalance = 0;
-        $studentsData = $students->map(function($student) use ($dateFrom, $dateTo, &$totalOpeningBalance) {
+        $studentsData = $students->map(function ($student) use ($dateFrom, $dateTo, &$totalOpeningBalance) {
             // Calculate opening balance if date filter is applied
             $openingBalance = 0;
             if ($dateFrom) {
@@ -120,9 +167,6 @@ class LedgerController extends Controller
                     ->where('date', '<', $dateFrom)
                     ->selectRaw('SUM(debit) - SUM(credit) as balance')
                     ->value('balance') ?? 0;
-
-                $salesBeforeDate = $student->particulars()->sum('particular_student.sales');
-                $openingBalance += $salesBeforeDate;
             }
             $totalOpeningBalance += $openingBalance;
 
@@ -162,7 +206,7 @@ class LedgerController extends Controller
         // Paginate the students data
         $page = $request->get('page', 1);
         $studentsCollection = collect($studentsData);
-        $paginatedStudents = new \Illuminate\Pagination\LengthAwarePaginator(
+        $paginatedStudents = new LengthAwarePaginator(
             $studentsCollection->forPage($page, $perPage),
             $studentsCollection->count(),
             $perPage,
@@ -201,7 +245,7 @@ class LedgerController extends Controller
 
         $dateFrom = $request->get('from_date');
         $dateTo = $request->get('to_date');
-        $viewType = $request->get('view_type', 'bank'); // 'bank' or 'cash'
+        $viewType = $request->get('view_type', 'bank'); // 'bank' or 'cash' (cash = accountant view)
 
         // Calculate opening balance based on filter
         // If date filter is applied, calculate balance up to that date
@@ -235,14 +279,14 @@ class LedgerController extends Controller
         $monthlyCredit = 0;
 
         foreach ($vouchersCollection as $voucher) {
-            $currentMonth = \Carbon\Carbon::parse($voucher->date)->format('Y-m');
+            $currentMonth = Carbon::parse($voucher->date)->format('Y-m');
 
             // Check if we've moved to a new month
             if ($previousMonth !== null && $currentMonth !== $previousMonth) {
                 // Add month-end closing balance
                 $ledger[] = [
                     'is_month_end' => true,
-                    'month' => \Carbon\Carbon::parse($previousMonth . '-01')->format('F Y'),
+                    'month' => Carbon::parse($previousMonth.'-01')->format('F Y'),
                     'closing_balance' => $runningBalance,
                     'monthly_debit' => $monthlyDebit,
                     'monthly_credit' => $monthlyCredit,
@@ -251,7 +295,7 @@ class LedgerController extends Controller
                 // Add month-start opening balance
                 $ledger[] = [
                     'is_month_start' => true,
-                    'month' => \Carbon\Carbon::parse($currentMonth . '-01')->format('F Y'),
+                    'month' => Carbon::parse($currentMonth.'-01')->format('F Y'),
                     'opening_balance' => $runningBalance,
                 ];
 
@@ -264,19 +308,19 @@ class LedgerController extends Controller
             if ($previousMonth === null) {
                 $ledger[] = [
                     'is_month_start' => true,
-                    'month' => \Carbon\Carbon::parse($currentMonth . '-01')->format('F Y'),
+                    'month' => Carbon::parse($currentMonth.'-01')->format('F Y'),
                     'opening_balance' => $openingBalance,
                 ];
             }
 
-            // For cash view, reverse the debit/credit (accountant perspective)
-            if ($viewType === 'cash') {
-                // In cash view: receipts (entries) are DR, payments (expenses) are CR
-                $displayDebit = $voucher->credit;  // What was credit becomes debit
-                $displayCredit = $voucher->debit;  // What was debit becomes credit
+            // Canonical storage is accountant view (cash):
+            // - cash: show as stored (DR=debit, CR=credit)
+            // - bank: invert for bank statement comparison (money in as CR, money out as DR)
+            if ($viewType === 'bank') {
+                $displayDebit = $voucher->credit;
+                $displayCredit = $voucher->debit;
                 $runningBalance += $displayDebit - $displayCredit;
             } else {
-                // Bank view: normal (receipts are CR, payments are DR)
                 $displayDebit = $voucher->debit;
                 $displayCredit = $voucher->credit;
                 $runningBalance += $voucher->debit - $voucher->credit;
@@ -285,28 +329,27 @@ class LedgerController extends Controller
             $monthlyDebit += $displayDebit;
             $monthlyCredit += $displayCredit;
 
-            // Determine particular display: show "Expense" for expense vouchers, "Suspense Account" for suspense
-            $particularDisplay = $voucher->particular->name ?? 'N/A';
-            if ($voucher->particular_id === null) {
-                if ($voucher->voucher_type === 'Payment' && $voucher->payment_by_receipt_to && $voucher->payment_by_receipt_to !== 'Suspense Reversal') {
-                    $particularDisplay = 'Expense';
-                } elseif ($voucher->payment_by_receipt_to === 'Suspense Account') {
-                    $particularDisplay = 'Suspense Account';
-                } elseif ($voucher->payment_by_receipt_to === 'Suspense Reversal') {
-                    $particularDisplay = 'Suspense Reversal';
-                } elseif ($voucher->payment_by_receipt_to === 'Suspense Resolution') {
-                    $particularDisplay = 'Suspense Resolution';
-                } elseif ($voucher->payment_by_receipt_to === 'Bank Deposit') {
-                    $particularDisplay = 'Bank Deposit';
-                } elseif ($voucher->payment_by_receipt_to === 'Bank Withdrawal') {
-                    $particularDisplay = 'Bank Withdrawal';
-                }
+            $meta = $this->resolveLedgerParticularMeta($voucher);
+            $particularDisplay = $meta['particularDisplay'];
+
+            $forReconciliation = $request->boolean('for_reconciliation');
+            $canEditHistory = (bool) (auth()->user()?->can_edit_history ?? false);
+            $isVoided = $voucher->voided_at !== null;
+
+            if ($forReconciliation && $canEditHistory && ! $isVoided) {
+                $adjustable = true;
+            } else {
+                $adjustable = in_array($voucher->payment_by_receipt_to, [
+                    'Bank Transaction Fee',
+                    'Monthly Bank Cut',
+                    'Reconciliation Adjustment',
+                ], true);
             }
 
             $ledger[] = [
                 'id' => $voucher->id,
                 'date' => $voucher->date,
-                'student' => $voucher->student->name ?? $voucher->payment_by_receipt_to ?? 'N/A',
+                'student' => $voucher->student?->name ?? $voucher->payment_by_receipt_to ?? 'N/A',
                 'particular' => $particularDisplay,
                 'voucher_type' => $voucher->voucher_type,
                 'voucher_number' => $voucher->voucher_number,
@@ -314,6 +357,12 @@ class LedgerController extends Controller
                 'credit' => $displayCredit,
                 'balance' => $runningBalance,
                 'notes' => $voucher->notes,
+                'payment_by_receipt_to' => $voucher->payment_by_receipt_to,
+                'storage_debit' => (float) $voucher->debit,
+                'storage_credit' => (float) $voucher->credit,
+                'adjustable' => $adjustable,
+                'is_advance_used' => $meta['is_advance_used'],
+                'is_voided' => $isVoided,
             ];
 
             $previousMonth = $currentMonth;
@@ -323,23 +372,23 @@ class LedgerController extends Controller
         if ($previousMonth !== null && count($vouchersCollection) > 0) {
             $ledger[] = [
                 'is_month_end' => true,
-                'month' => \Carbon\Carbon::parse($previousMonth . '-01')->format('F Y'),
+                'month' => Carbon::parse($previousMonth.'-01')->format('F Y'),
                 'closing_balance' => $runningBalance,
                 'monthly_debit' => $monthlyDebit,
                 'monthly_credit' => $monthlyCredit,
             ];
         }
 
-        $totalDebit = $viewType === 'cash' ? $vouchersCollection->sum('credit') : $vouchersCollection->sum('debit');
-        $totalCredit = $viewType === 'cash' ? $vouchersCollection->sum('debit') : $vouchersCollection->sum('credit');
+        $totalDebit = $viewType === 'bank' ? $vouchersCollection->sum('credit') : $vouchersCollection->sum('debit');
+        $totalCredit = $viewType === 'bank' ? $vouchersCollection->sum('debit') : $vouchersCollection->sum('credit');
         $closingBalance = $openingBalance + $totalDebit - $totalCredit;
 
         // Get suspense accounts for this book
-        $suspenseAccounts = \App\Models\SuspenseAccount::where('book_id', $bookId)
+        $suspenseAccounts = SuspenseAccount::where('book_id', $bookId)
             ->orderBy('resolved')
             ->orderBy('date', 'desc')
             ->get()
-            ->map(function($suspense) {
+            ->map(function ($suspense) {
                 $resolvedAmount = $suspense->resolved_amount ?? 0;
                 $remainingAmount = $suspense->amount - $resolvedAmount;
 
@@ -385,6 +434,24 @@ class LedgerController extends Controller
             ],
             'view_type' => $viewType,
         ]);
+    }
+
+    /**
+     * Debit/credit shown on the particular ledger (one fee item, all students).
+     * Fee assignments are stored as Sales (DR). Payments are Receipt vouchers with amount in debit (canonical);
+     * for this sub-ledger they are shown as credit so balance = fees billed − receipts − other credits.
+     */
+    private function particularLedgerDisplayedAmounts(Voucher $voucher): array
+    {
+        return match ($voucher->voucher_type) {
+            'Sales' => ['debit' => (float) $voucher->debit, 'credit' => 0.0],
+            'Receipt' => ['debit' => 0.0, 'credit' => (float) $voucher->debit],
+            'Payment' => [
+                'debit' => 0.0,
+                'credit' => (float) ($voucher->credit > 0 ? $voucher->credit : $voucher->debit),
+            ],
+            default => ['debit' => (float) $voucher->debit, 'credit' => (float) $voucher->credit],
+        };
     }
 
     public function particularLedger($particularId, Request $request)
@@ -443,14 +510,14 @@ class LedgerController extends Controller
         $monthlyCredit = 0;
 
         foreach ($vouchers as $voucher) {
-            $currentMonth = \Carbon\Carbon::parse($voucher->date)->format('Y-m');
+            $currentMonth = Carbon::parse($voucher->date)->format('Y-m');
 
             // Check if we've moved to a new month
             if ($previousMonth !== null && $currentMonth !== $previousMonth) {
                 // Add month-end closing balance
                 $entries[] = [
                     'is_month_end' => true,
-                    'month' => \Carbon\Carbon::parse($previousMonth . '-01')->format('F Y'),
+                    'month' => Carbon::parse($previousMonth.'-01')->format('F Y'),
                     'closing_balance' => $runningBalance,
                     'monthly_debit' => $monthlyDebit,
                     'monthly_credit' => $monthlyCredit,
@@ -459,7 +526,7 @@ class LedgerController extends Controller
                 // Add month-start opening balance
                 $entries[] = [
                     'is_month_start' => true,
-                    'month' => \Carbon\Carbon::parse($currentMonth . '-01')->format('F Y'),
+                    'month' => Carbon::parse($currentMonth.'-01')->format('F Y'),
                     'opening_balance' => $runningBalance,
                 ];
 
@@ -472,25 +539,25 @@ class LedgerController extends Controller
             if ($previousMonth === null) {
                 $entries[] = [
                     'is_month_start' => true,
-                    'month' => \Carbon\Carbon::parse($currentMonth . '-01')->format('F Y'),
+                    'month' => Carbon::parse($currentMonth.'-01')->format('F Y'),
                     'opening_balance' => 0,
                 ];
             }
 
-            // In particular ledger: Receipts are DR (money in), Payments are CR (money out)
-            $displayDebit = $voucher->voucher_type === 'Receipt' ? $voucher->credit : 0;
-            $displayCredit = $voucher->voucher_type === 'Payment' ? $voucher->credit : 0;
+            $shown = $this->particularLedgerDisplayedAmounts($voucher);
+            $displayDebit = $shown['debit'];
+            $displayCredit = $shown['credit'];
 
-            // Balance calculation: DR increases balance, CR decreases balance
+            // Balance: fees billed (debit) minus payments and other credits
             $runningBalance += $displayDebit - $displayCredit;
             $monthlyDebit += $displayDebit;
             $monthlyCredit += $displayCredit;
 
             $entries[] = [
                 'date' => $voucher->date,
-                'student' => $voucher->student->name ?? 'N/A',
-                'class' => $voucher->student->schoolClass->name ?? $voucher->student->class ?? 'N/A',
-                'book' => $voucher->book->name ?? 'N/A',
+                'student' => $voucher->student?->name ?? 'N/A',
+                'class' => $voucher->student?->schoolClass?->name ?? $voucher->student?->class ?? 'N/A',
+                'book' => $voucher->book?->name ?? 'N/A',
                 'voucher_type' => $voucher->voucher_type,
                 'debit' => $displayDebit,
                 'credit' => $displayCredit,
@@ -504,7 +571,7 @@ class LedgerController extends Controller
         if ($previousMonth !== null && count($vouchers) > 0) {
             $entries[] = [
                 'is_month_end' => true,
-                'month' => \Carbon\Carbon::parse($previousMonth . '-01')->format('F Y'),
+                'month' => Carbon::parse($previousMonth.'-01')->format('F Y'),
                 'closing_balance' => $runningBalance,
                 'monthly_debit' => $monthlyDebit,
                 'monthly_credit' => $monthlyCredit,
@@ -530,7 +597,7 @@ class LedgerController extends Controller
             // Find the balance before this page starts
             $previousPageLastEntry = $entriesCollection->slice(0, $offset)->last();
             $openingBalance = $previousPageLastEntry['balance'] ?? 0;
-            
+
             array_unshift($paginatedItems, [
                 'is_page_opening' => true,
                 'opening_balance' => $openingBalance,
@@ -540,20 +607,20 @@ class LedgerController extends Controller
         // Add closing balance sheet at end of page (if not last page)
         if ($page < ceil($total / $perPage) && count($paginatedItems) > 0) {
             // Get the last entry's balance (excluding any page opening balance we just added)
-            $regularEntries = array_filter($paginatedItems, function($item) {
-                return !isset($item['is_page_opening']);
+            $regularEntries = array_filter($paginatedItems, function ($item) {
+                return ! isset($item['is_page_opening']);
             });
             $lastEntry = end($regularEntries);
             reset($regularEntries); // Reset array pointer
             $closingBalance = $lastEntry['balance'] ?? 0;
-            
+
             $paginatedItems[] = [
                 'is_page_closing' => true,
                 'closing_balance' => $closingBalance,
             ];
         }
 
-        $paginatedEntries = new \Illuminate\Pagination\LengthAwarePaginator(
+        $paginatedEntries = new LengthAwarePaginator(
             $paginatedItems,
             $total,
             $perPage,
@@ -630,9 +697,6 @@ class LedgerController extends Controller
                 ->where('date', '<', $dateFrom)
                 ->selectRaw('SUM(debit) - SUM(credit) as balance')
                 ->value('balance') ?? 0;
-
-            $salesBeforeDate = $student->particulars()->sum('particular_student.sales');
-            $openingBalance += $salesBeforeDate;
         }
 
         // Get voucher entries
@@ -659,7 +723,7 @@ class LedgerController extends Controller
 
             $entry = [
                 'date' => $voucher->date,
-                'particular' => $voucher->particular->name ?? 'N/A',
+                'particular' => $voucher->particular?->name ?? 'N/A',
                 'voucher_type' => $voucher->voucher_type,
                 'voucher_number' => $voucher->voucher_number,
                 'debit' => $voucher->debit,
@@ -685,6 +749,7 @@ class LedgerController extends Controller
         }
 
         $pdf = Pdf::loadView('ledgers.student-pdf', compact('student', 'school', 'salesData', 'entryData', 'totalDebit', 'totalCredit', 'balance', 'dateRange', 'openingBalance'));
+
         return $pdf->download("student-ledger-{$studentId}.pdf");
     }
 
@@ -698,16 +763,13 @@ class LedgerController extends Controller
         $dateTo = $request->get('to_date');
 
         $totalOpeningBalance = 0;
-        $classLedger = $students->map(function($student) use ($dateFrom, $dateTo, &$totalOpeningBalance) {
+        $classLedger = $students->map(function ($student) use ($dateFrom, $dateTo, &$totalOpeningBalance) {
             $openingBalance = 0;
             if ($dateFrom) {
                 $openingBalance = Voucher::where('student_id', $student->id)
                     ->where('date', '<', $dateFrom)
                     ->selectRaw('SUM(debit) - SUM(credit) as balance')
                     ->value('balance') ?? 0;
-
-                $salesBeforeDate = $student->particulars()->sum('particular_student.sales');
-                $openingBalance += $salesBeforeDate;
             }
             $totalOpeningBalance += $openingBalance;
 
@@ -729,10 +791,10 @@ class LedgerController extends Controller
             $balance = $openingBalance + $totalDebit - $totalCredit;
 
             // Build particulars array
-            $particulars = $vouchers->map(function($voucher) {
+            $particulars = $vouchers->map(function ($voucher) {
                 return [
                     'date' => $voucher->date,
-                    'particular' => $voucher->particular->name ?? 'N/A',
+                    'particular' => $voucher->particular?->name ?? 'N/A',
                     'voucher_type' => $voucher->voucher_type,
                     'voucher_number' => $voucher->voucher_number,
                     'debit' => $voucher->debit,
@@ -768,6 +830,7 @@ class LedgerController extends Controller
         $className = $class->name;
 
         $pdf = Pdf::loadView('ledgers.class-pdf', compact('className', 'school', 'classLedger', 'classSummary', 'dateRange'));
+
         return $pdf->download("class-ledger-{$classId}.pdf");
     }
 
@@ -811,14 +874,14 @@ class LedgerController extends Controller
         $monthlyCredit = 0;
 
         foreach ($vouchersCollection as $voucher) {
-            $currentMonth = \Carbon\Carbon::parse($voucher->date)->format('Y-m');
+            $currentMonth = Carbon::parse($voucher->date)->format('Y-m');
 
             // Check if we've moved to a new month
             if ($previousMonth !== null && $currentMonth !== $previousMonth) {
                 // Add month-end closing balance
                 $ledgerData[] = [
                     'is_month_end' => true,
-                    'month' => \Carbon\Carbon::parse($previousMonth . '-01')->format('F Y'),
+                    'month' => Carbon::parse($previousMonth.'-01')->format('F Y'),
                     'closing_balance' => $runningBalance,
                     'monthly_debit' => $monthlyDebit,
                     'monthly_credit' => $monthlyCredit,
@@ -827,7 +890,7 @@ class LedgerController extends Controller
                 // Add month-start opening balance
                 $ledgerData[] = [
                     'is_month_start' => true,
-                    'month' => \Carbon\Carbon::parse($currentMonth . '-01')->format('F Y'),
+                    'month' => Carbon::parse($currentMonth.'-01')->format('F Y'),
                     'opening_balance' => $runningBalance,
                 ];
 
@@ -840,13 +903,14 @@ class LedgerController extends Controller
             if ($previousMonth === null) {
                 $ledgerData[] = [
                     'is_month_start' => true,
-                    'month' => \Carbon\Carbon::parse($currentMonth . '-01')->format('F Y'),
+                    'month' => Carbon::parse($currentMonth.'-01')->format('F Y'),
                     'opening_balance' => $openingBalance,
                 ];
             }
 
-            // For cash view, reverse the debit/credit
-            if ($viewType === 'cash') {
+            // Canonical storage is accountant view (cash).
+            // For bank view PDF, invert debit/credit for statement comparison.
+            if ($viewType === 'bank') {
                 $displayDebit = $voucher->credit;
                 $displayCredit = $voucher->debit;
                 $runningBalance += $displayDebit - $displayCredit;
@@ -859,23 +923,12 @@ class LedgerController extends Controller
             $monthlyDebit += $displayDebit;
             $monthlyCredit += $displayCredit;
 
-            // Determine particular display: show "Expense" for expense vouchers, "Suspense Account" for suspense
-            $particularDisplay = $voucher->particular->name ?? 'N/A';
-            if ($voucher->particular_id === null) {
-                if ($voucher->voucher_type === 'Payment' && $voucher->payment_by_receipt_to && $voucher->payment_by_receipt_to !== 'Suspense Reversal') {
-                    $particularDisplay = 'Expense';
-                } elseif ($voucher->payment_by_receipt_to === 'Suspense Account') {
-                    $particularDisplay = 'Suspense Account';
-                } elseif ($voucher->payment_by_receipt_to === 'Suspense Reversal') {
-                    $particularDisplay = 'Suspense Reversal';
-                } elseif ($voucher->payment_by_receipt_to === 'Suspense Resolution') {
-                    $particularDisplay = 'Suspense Resolution';
-                }
-            }
+            $meta = $this->resolveLedgerParticularMeta($voucher);
+            $particularDisplay = $meta['particularDisplay'];
 
             $ledgerData[] = [
                 'date' => $voucher->date,
-                'student' => $voucher->student->name ?? $voucher->payment_by_receipt_to ?? 'N/A',
+                'student' => $voucher->student?->name ?? $voucher->payment_by_receipt_to ?? 'N/A',
                 'particular' => $particularDisplay,
                 'voucher_type' => $voucher->voucher_type,
                 'voucher_number' => $voucher->voucher_number,
@@ -892,15 +945,15 @@ class LedgerController extends Controller
         if ($previousMonth !== null && count($vouchersCollection) > 0) {
             $ledgerData[] = [
                 'is_month_end' => true,
-                'month' => \Carbon\Carbon::parse($previousMonth . '-01')->format('F Y'),
+                'month' => Carbon::parse($previousMonth.'-01')->format('F Y'),
                 'closing_balance' => $runningBalance,
                 'monthly_debit' => $monthlyDebit,
                 'monthly_credit' => $monthlyCredit,
             ];
         }
 
-        $totalReceipts = $viewType === 'cash' ? $vouchersCollection->sum('credit') : $vouchersCollection->sum('debit');
-        $totalPayments = $viewType === 'cash' ? $vouchersCollection->sum('debit') : $vouchersCollection->sum('credit');
+        $totalReceipts = $viewType === 'bank' ? $vouchersCollection->sum('credit') : $vouchersCollection->sum('debit');
+        $totalPayments = $viewType === 'bank' ? $vouchersCollection->sum('debit') : $vouchersCollection->sum('credit');
         $balance = $openingBalance + $totalReceipts - $totalPayments;
 
         $dateRange = 'All Transactions';
@@ -909,6 +962,7 @@ class LedgerController extends Controller
         }
 
         $pdf = Pdf::loadView('ledgers.book-pdf', compact('book', 'school', 'ledgerData', 'totalReceipts', 'totalPayments', 'balance', 'openingBalance', 'dateRange', 'viewType'));
+
         return $pdf->download("book-ledger-{$bookId}.pdf");
     }
 
@@ -942,23 +996,23 @@ class LedgerController extends Controller
         $monthlyCredit = 0;
 
         foreach ($vouchersCollection as $voucher) {
-            $currentMonth = \Carbon\Carbon::parse($voucher->date)->format('Y-m');
+            $currentMonth = Carbon::parse($voucher->date)->format('Y-m');
 
             // Check if we've moved to a new month
             if ($previousMonth !== null && $currentMonth !== $previousMonth) {
                 // Add month-end closing balance
-                $vouchers[] = (object)[
+                $vouchers[] = (object) [
                     'is_month_end' => true,
-                    'month' => \Carbon\Carbon::parse($previousMonth . '-01')->format('F Y'),
+                    'month' => Carbon::parse($previousMonth.'-01')->format('F Y'),
                     'closing_balance' => $runningBalance,
                     'monthly_debit' => $monthlyDebit,
                     'monthly_credit' => $monthlyCredit,
                 ];
 
                 // Add month-start opening balance
-                $vouchers[] = (object)[
+                $vouchers[] = (object) [
                     'is_month_start' => true,
-                    'month' => \Carbon\Carbon::parse($currentMonth . '-01')->format('F Y'),
+                    'month' => Carbon::parse($currentMonth.'-01')->format('F Y'),
                     'opening_balance' => $runningBalance,
                 ];
 
@@ -969,18 +1023,17 @@ class LedgerController extends Controller
 
             // If this is the first entry, add month opening
             if ($previousMonth === null) {
-                $vouchers[] = (object)[
+                $vouchers[] = (object) [
                     'is_month_start' => true,
-                    'month' => \Carbon\Carbon::parse($currentMonth . '-01')->format('F Y'),
+                    'month' => Carbon::parse($currentMonth.'-01')->format('F Y'),
                     'opening_balance' => 0,
                 ];
             }
 
-            // In particular ledger: Receipts are DR (money in), Payments are CR (money out)
-            $displayDebit = $voucher->voucher_type === 'Receipt' ? $voucher->credit : 0;
-            $displayCredit = $voucher->voucher_type === 'Payment' ? $voucher->credit : 0;
+            $shown = $this->particularLedgerDisplayedAmounts($voucher);
+            $displayDebit = $shown['debit'];
+            $displayCredit = $shown['credit'];
 
-            // Balance calculation: DR increases balance, CR decreases balance
             $runningBalance += $displayDebit - $displayCredit;
             $monthlyDebit += $displayDebit;
             $monthlyCredit += $displayCredit;
@@ -995,24 +1048,21 @@ class LedgerController extends Controller
 
         // Add final month-end closing balance
         if ($previousMonth !== null && count($vouchersCollection) > 0) {
-            $vouchers[] = (object)[
+            $vouchers[] = (object) [
                 'is_month_end' => true,
-                'month' => \Carbon\Carbon::parse($previousMonth . '-01')->format('F Y'),
+                'month' => Carbon::parse($previousMonth.'-01')->format('F Y'),
                 'closing_balance' => $runningBalance,
                 'monthly_debit' => $monthlyDebit,
                 'monthly_credit' => $monthlyCredit,
             ];
         }
 
-        // Calculate totals using the same swap logic
         $totalDebit = 0;
         $totalCredit = 0;
         foreach ($vouchersCollection as $v) {
-            if ($v->voucher_type === 'Receipt') {
-                $totalDebit += $v->credit;
-            } elseif ($v->voucher_type === 'Payment') {
-                $totalCredit += $v->credit;
-            }
+            $shown = $this->particularLedgerDisplayedAmounts($v);
+            $totalDebit += $shown['debit'];
+            $totalCredit += $shown['credit'];
         }
         $balance = $totalDebit - $totalCredit;
         $openingBalance = 0;
@@ -1023,10 +1073,9 @@ class LedgerController extends Controller
         }
 
         $pdf = Pdf::loadView('ledgers.particular-pdf', compact('particular', 'school', 'vouchers', 'totalDebit', 'totalCredit', 'balance', 'openingBalance', 'dateRange'));
+
         return $pdf->download("particular-ledger-{$particularId}.pdf");
     }
-
-
 
     // CSV Export Methods
     public function exportStudentLedgerCsv($studentId, Request $request)
@@ -1054,7 +1103,7 @@ class LedgerController extends Controller
         $handle = fopen('php://output', 'w');
 
         header('Content-Type: text/csv');
-        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        header('Content-Disposition: attachment; filename="'.$filename.'"');
 
         // Add student info header
         fputcsv($handle, ['Student Name:', $student->name]);
@@ -1067,7 +1116,7 @@ class LedgerController extends Controller
         foreach ($vouchers as $voucher) {
             fputcsv($handle, [
                 $voucher->date,
-                $voucher->particular->name ?? '',
+                $voucher->particular?->name ?? '',
                 $voucher->voucher_type,
                 $voucher->voucher_number,
                 $voucher->debit,
@@ -1092,7 +1141,7 @@ class LedgerController extends Controller
         $handle = fopen('php://output', 'w');
 
         header('Content-Type: text/csv');
-        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        header('Content-Disposition: attachment; filename="'.$filename.'"');
 
         // Add class info header
         fputcsv($handle, ['Class:', $class->name]);
@@ -1172,11 +1221,11 @@ class LedgerController extends Controller
         $handle = fopen('php://output', 'w');
 
         header('Content-Type: text/csv');
-        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        header('Content-Disposition: attachment; filename="'.$filename.'"');
 
         // Add book info header
         fputcsv($handle, ['Book:', $book->name]);
-        fputcsv($handle, ['View Type:', ucfirst($viewType) . ' View']);
+        fputcsv($handle, ['View Type:', ucfirst($viewType).' View']);
         fputcsv($handle, ['Opening Balance:', $openingBalance]);
         if ($dateFrom) {
             fputcsv($handle, ['Period From:', $dateFrom]);
@@ -1186,28 +1235,29 @@ class LedgerController extends Controller
         }
         fputcsv($handle, []); // Empty row
 
-        $drLabel = $viewType === 'cash' ? 'DR (Entries)' : 'DR (In)';
-        $crLabel = $viewType === 'cash' ? 'CR (Expenses)' : 'CR (Out)';
+        $drLabel = $viewType === 'cash' ? 'DR (In)' : 'DR (Out)';
+        $crLabel = $viewType === 'cash' ? 'CR (Out)' : 'CR (In)';
         fputcsv($handle, ['Date', 'Student/Name', 'Particular', 'Entry Type', 'Voucher Type', 'Voucher #', $drLabel, $crLabel, 'Balance', 'Notes']);
 
         $runningBalance = $openingBalance;
         $previousMonth = null;
 
         foreach ($vouchers as $voucher) {
-            $currentMonth = \Carbon\Carbon::parse($voucher->date)->format('Y-m');
+            $currentMonth = Carbon::parse($voucher->date)->format('Y-m');
 
             // Add month boundary markers
             if ($previousMonth !== null && $currentMonth !== $previousMonth) {
-                fputcsv($handle, ['--- End of ' . \Carbon\Carbon::parse($previousMonth . '-01')->format('F Y') . ' ---', '', '', 'MONTH_END', '', '', '', '', $runningBalance, '']);
-                fputcsv($handle, ['--- Start of ' . \Carbon\Carbon::parse($currentMonth . '-01')->format('F Y') . ' ---', '', '', 'MONTH_START', '', '', '', '', $runningBalance, '']);
+                fputcsv($handle, ['--- End of '.Carbon::parse($previousMonth.'-01')->format('F Y').' ---', '', '', 'MONTH_END', '', '', '', '', $runningBalance, '']);
+                fputcsv($handle, ['--- Start of '.Carbon::parse($currentMonth.'-01')->format('F Y').' ---', '', '', 'MONTH_START', '', '', '', '', $runningBalance, '']);
             }
 
             if ($previousMonth === null) {
-                fputcsv($handle, ['--- Start of ' . \Carbon\Carbon::parse($currentMonth . '-01')->format('F Y') . ' ---', '', '', 'MONTH_START', '', '', '', '', $openingBalance, '']);
+                fputcsv($handle, ['--- Start of '.Carbon::parse($currentMonth.'-01')->format('F Y').' ---', '', '', 'MONTH_START', '', '', '', '', $openingBalance, '']);
             }
 
-            // Calculate display values based on view type
-            if ($viewType === 'cash') {
+            // Canonical storage is accountant view (cash).
+            // For bank view CSV, invert debit/credit for statement comparison.
+            if ($viewType === 'bank') {
                 $displayDebit = $voucher->credit;
                 $displayCredit = $voucher->debit;
                 $runningBalance += $displayDebit - $displayCredit;
@@ -1217,12 +1267,14 @@ class LedgerController extends Controller
                 $runningBalance += $voucher->debit - $voucher->credit;
             }
 
-            // Determine particular display and entry type for highlighting
-            $particularDisplay = $voucher->particular->name ?? 'N/A';
-            $entryType = 'NORMAL'; // Default entry type
-            if ($voucher->particular_id === null) {
+            $meta = $this->resolveLedgerParticularMeta($voucher);
+            $particularDisplay = $meta['particularDisplay'];
+            $entryType = $meta['is_advance_used'] ? 'ADVANCE_USED' : ($meta['is_advance_deposit'] ? 'ADVANCE' : 'NORMAL');
+            if ($meta['is_advance_used'] || $meta['is_advance_deposit']) {
+                // entryType set above
+            } elseif ($voucher->particular_id === null) {
                 if ($voucher->voucher_type === 'Payment' && $voucher->payment_by_receipt_to &&
-                    !in_array($voucher->payment_by_receipt_to, ['Suspense Reversal', 'Suspense Account', 'Suspense Resolution', 'Bank Deposit', 'Bank Withdrawal'])) {
+                    ! in_array($voucher->payment_by_receipt_to, ['Suspense Reversal', 'Suspense Account', 'Suspense Resolution', 'Bank Deposit', 'Bank Withdrawal'])) {
                     $particularDisplay = 'Expense';
                     $entryType = 'EXPENSE';
                 } elseif ($voucher->payment_by_receipt_to === 'Suspense Account') {
@@ -1240,12 +1292,24 @@ class LedgerController extends Controller
                 } elseif ($voucher->payment_by_receipt_to === 'Bank Withdrawal') {
                     $particularDisplay = 'Bank Withdrawal';
                     $entryType = 'WITHDRAWAL';
+                } elseif ($voucher->payment_by_receipt_to === 'Advance Payment') {
+                    $particularDisplay = 'Advance Payment';
+                    $entryType = 'ADVANCE';
+                } elseif ($voucher->payment_by_receipt_to === 'Monthly Bank Cut') {
+                    $particularDisplay = 'Monthly Bank Cut';
+                    $entryType = 'MONTHLY_CUT';
+                } elseif ($voucher->payment_by_receipt_to === 'Bank Transaction Fee') {
+                    $particularDisplay = 'Bank Transaction Fee';
+                    $entryType = 'BANK_FEE';
+                } elseif ($voucher->payment_by_receipt_to === 'Reconciliation Adjustment') {
+                    $particularDisplay = 'Reconciliation Adjustment';
+                    $entryType = 'RECON_ADJ';
                 }
             }
 
             fputcsv($handle, [
                 $voucher->date,
-                $voucher->student->name ?? $voucher->payment_by_receipt_to ?? 'N/A',
+                $voucher->student?->name ?? $voucher->payment_by_receipt_to ?? 'N/A',
                 $particularDisplay,
                 $entryType,
                 $voucher->voucher_type,
@@ -1261,7 +1325,7 @@ class LedgerController extends Controller
 
         // Add final month end marker
         if ($previousMonth !== null) {
-            fputcsv($handle, ['--- End of ' . \Carbon\Carbon::parse($previousMonth . '-01')->format('F Y') . ' ---', '', '', 'MONTH_END', '', '', '', '', $runningBalance, '']);
+            fputcsv($handle, ['--- End of '.Carbon::parse($previousMonth.'-01')->format('F Y').' ---', '', '', 'MONTH_END', '', '', '', '', $runningBalance, '']);
         }
 
         fputcsv($handle, []); // Empty row
@@ -1276,131 +1340,33 @@ class LedgerController extends Controller
     {
         $settings = SchoolSetting::getSettings();
         $classes = SchoolClass::where('is_active', true)->orderBy('display_order')->get();
+
         return view('admin.accountant.modules.invoices', compact('settings', 'classes'));
     }
 
-    public function exportAllStudentsInvoicesPdf(Request $request)
+    /**
+     * Build fee statement data for a student (single or bulk PDF).
+     */
+    protected function buildStudentInvoiceData(Student $student): array
     {
-        $students = Student::with(['schoolClass', 'particulars'])->where('status', 'active')->get();
-        $school = SchoolSetting::getSettings();
+        $student->loadMissing(['schoolClass', 'particulars', 'scholarships']);
 
-        // Build invoice data for all students
-        $allInvoices = [];
-        foreach ($students as $student) {
-            $items = [];
-            $totalFees = 0;
-            $totalPaid = 0;
-
-            foreach ($student->particulars as $particular) {
-                $sales = $particular->pivot->sales ?? 0;
-                $credit = $particular->pivot->credit ?? 0;
-                $balance = $sales - $credit;
-                $deadline = $particular->pivot->deadline;
-                $isOverdue = $deadline && \Carbon\Carbon::parse($deadline)->isPast() && $balance > 0;
-
-                $items[] = [
-                    'name' => $particular->name,
-                    'amount' => $sales,
-                    'paid' => $credit,
-                    'balance' => $balance,
-                    'deadline' => $deadline,
-                    'is_overdue' => $isOverdue,
-                ];
-
-                $totalFees += $sales;
-                $totalPaid += $credit;
-            }
-
-            $allInvoices[] = [
-                'student' => $student,
-                'invoiceData' => [
-                    'items' => $items,
-                    'total_fees' => $totalFees,
-                    'total_paid' => $totalPaid,
-                    'balance_remaining' => $totalFees - $totalPaid,
-                ],
-            ];
-        }
-
-        $pdf = Pdf::loadView('invoices.all-students-pdf', compact('allInvoices', 'school'));
-        return $pdf->download("all-students-invoices.pdf");
-    }
-
-    public function exportClassInvoicesPdf($className, Request $request)
-    {
-        $class = SchoolClass::where('name', $className)->firstOrFail();
-        $students = $class->students()->with('particulars')->where('status', 'active')->get();
-        $school = SchoolSetting::getSettings();
-
-        // Build invoice data for all students in the class
-        $allInvoices = [];
-        foreach ($students as $student) {
-            $items = [];
-            $totalFees = 0;
-            $totalPaid = 0;
-
-            foreach ($student->particulars as $particular) {
-                $sales = $particular->pivot->sales ?? 0;
-                $credit = $particular->pivot->credit ?? 0;
-                $balance = $sales - $credit;
-                $deadline = $particular->pivot->deadline;
-                $isOverdue = $deadline && \Carbon\Carbon::parse($deadline)->isPast() && $balance > 0;
-
-                $items[] = [
-                    'name' => $particular->name,
-                    'amount' => $sales,
-                    'paid' => $credit,
-                    'balance' => $balance,
-                    'deadline' => $deadline,
-                    'is_overdue' => $isOverdue,
-                ];
-
-                $totalFees += $sales;
-                $totalPaid += $credit;
-            }
-
-            $allInvoices[] = [
-                'student' => $student,
-                'invoiceData' => [
-                    'items' => $items,
-                    'total_fees' => $totalFees,
-                    'total_paid' => $totalPaid,
-                    'balance_remaining' => $totalFees - $totalPaid,
-                ],
-            ];
-        }
-
-        // Load bank accounts for payment details
-        $bankAccounts = \App\Models\BankAccount::all();
-
-        $pdf = Pdf::loadView('invoices.all-students-pdf', compact('allInvoices', 'school', 'bankAccounts'));
-        return $pdf->download("class-{$className}-invoices.pdf");
-    }
-
-    public function exportStudentInvoicePdf($studentId, Request $request)
-    {
-        $student = Student::with(['schoolClass', 'particulars', 'scholarships'])->findOrFail($studentId);
-        $school = SchoolSetting::getSettings();
-
-        // Get all academic years ordered by start_date (oldest first)
         $academicYears = AcademicYear::orderBy('start_date', 'asc')->get();
 
-        // Get active scholarships for this student, keyed by particular_id and academic_year_id
         $scholarshipMap = [];
         $totalScholarshipForgiven = 0;
         if ($student->scholarships) {
             foreach ($student->scholarships->where('is_active', true) as $scholarship) {
-                $key = $scholarship->particular_id . '_' . ($scholarship->academic_year_id ?? 'none');
+                $key = $scholarship->particular_id.'_'.($scholarship->academic_year_id ?? 'none');
                 $scholarshipMap[$key] = $scholarship;
                 $totalScholarshipForgiven += $scholarship->forgiven_amount;
             }
         }
 
-        // Build invoice data structure organized by academic year
         $itemsByYear = [];
         $totalFees = 0;
         $totalPaid = 0;
-        $totalOriginalFees = 0; // Before scholarship
+        $totalOriginalFees = 0;
 
         foreach ($student->particulars as $particular) {
             $sales = $particular->pivot->sales ?? 0;
@@ -1408,19 +1374,17 @@ class LedgerController extends Controller
             $balance = $sales - $credit;
             $deadline = $particular->pivot->deadline;
             $academicYearId = $particular->pivot->academic_year_id;
-            $isOverdue = $deadline && \Carbon\Carbon::parse($deadline)->isPast() && $balance > 0;
+            $isOverdue = $deadline && Carbon::parse($deadline)->isPast() && $balance > 0;
 
-            // Check for scholarship
-            $scholarshipKey = $particular->id . '_' . ($academicYearId ?? 'none');
+            $scholarshipKey = $particular->id.'_'.($academicYearId ?? 'none');
             $scholarship = $scholarshipMap[$scholarshipKey] ?? null;
             $originalAmount = $scholarship ? $scholarship->original_amount : $sales;
             $scholarshipAmount = $scholarship ? $scholarship->forgiven_amount : 0;
 
-            // Find academic year name
             $academicYear = $academicYears->firstWhere('id', $academicYearId);
             $yearName = $academicYear ? $academicYear->name : 'Unassigned';
 
-            if (!isset($itemsByYear[$yearName])) {
+            if (! isset($itemsByYear[$yearName])) {
                 $itemsByYear[$yearName] = [
                     'year_name' => $yearName,
                     'year_id' => $academicYearId,
@@ -1441,7 +1405,7 @@ class LedgerController extends Controller
                 'has_scholarship' => $scholarship !== null,
                 'scholarship_type' => $scholarship ? $scholarship->scholarship_type : null,
                 'scholarship_name' => $scholarship ? $scholarship->scholarship_name : null,
-                'amount' => $sales, // After scholarship reduction
+                'amount' => $sales,
                 'paid' => $credit,
                 'balance' => $balance,
                 'deadline' => $deadline,
@@ -1455,19 +1419,21 @@ class LedgerController extends Controller
             $itemsByYear[$yearName]['subtotal_scholarship'] += $scholarshipAmount;
 
             $totalOriginalFees += $originalAmount;
-
             $totalFees += $sales;
             $totalPaid += $credit;
         }
 
-        // Sort by year start date (oldest first)
-        uasort($itemsByYear, function($a, $b) {
-            if ($a['start_date'] === null) return 1;
-            if ($b['start_date'] === null) return -1;
+        uasort($itemsByYear, function ($a, $b) {
+            if ($a['start_date'] === null) {
+                return 1;
+            }
+            if ($b['start_date'] === null) {
+                return -1;
+            }
+
             return strtotime($a['start_date']) - strtotime($b['start_date']);
         });
 
-        // Flatten for backwards compatibility while also providing grouped data
         $items = [];
         foreach ($itemsByYear as $yearData) {
             foreach ($yearData['items'] as $item) {
@@ -1476,7 +1442,7 @@ class LedgerController extends Controller
             }
         }
 
-        $invoiceData = [
+        return [
             'items' => $items,
             'items_by_year' => array_values($itemsByYear),
             'total_fees' => $totalFees,
@@ -1486,21 +1452,83 @@ class LedgerController extends Controller
             'total_scholarship_amount' => $totalScholarshipForgiven,
             'has_scholarships' => $totalScholarshipForgiven > 0,
         ];
+    }
 
-        // Load bank accounts for payment details
-        $bankAccounts = \App\Models\BankAccount::all();
+    /**
+     * @return \Illuminate\Database\Eloquent\Collection<int, Student>
+     */
+    protected function studentsForInvoiceExport(Request $request)
+    {
+        $query = Student::with(['schoolClass', 'particulars', 'scholarships'])
+            ->where('status', 'active');
+
+        $classId = $request->query('class');
+        $classIds = $request->query('classes', []);
+
+        if ($classId !== null && $classId !== '') {
+            $query->where('class_id', $classId);
+        } elseif (! empty($classIds)) {
+            $query->whereIn('class_id', (array) $classIds);
+        }
+
+        return $query->orderBy('name')->get();
+    }
+
+    public function exportAllStudentsInvoicesPdf(Request $request)
+    {
+        $students = $this->studentsForInvoiceExport($request);
+        $school = SchoolSetting::getSettings();
+        $bankAccounts = BankAccount::all();
+
+        $allInvoices = [];
+        foreach ($students as $student) {
+            $allInvoices[] = [
+                'student' => $student,
+                'invoiceData' => $this->buildStudentInvoiceData($student),
+            ];
+        }
+
+        $filename = 'all-students-invoices.pdf';
+        if ($request->filled('class')) {
+            $class = SchoolClass::find($request->query('class'));
+            if ($class) {
+                $filename = 'class-'.preg_replace('/[^a-zA-Z0-9_-]+/', '-', $class->name).'-invoices.pdf';
+            }
+        }
+
+        $pdf = Pdf::loadView('invoices.all-students-pdf', compact('allInvoices', 'school', 'bankAccounts'));
+
+        return $pdf->download($filename);
+    }
+
+    public function exportClassInvoicesPdf($className, Request $request)
+    {
+        $class = SchoolClass::where('name', $className)->firstOrFail();
+        $request->merge(['class' => $class->id]);
+
+        return $this->exportAllStudentsInvoicesPdf($request);
+    }
+
+    public function exportStudentInvoicePdf($studentId, Request $request)
+    {
+        $student = Student::with(['schoolClass', 'particulars', 'scholarships'])->findOrFail($studentId);
+        $school = SchoolSetting::getSettings();
+        $invoiceData = $this->buildStudentInvoiceData($student);
+        $bankAccounts = BankAccount::all();
 
         $pdf = Pdf::loadView('invoices.student-pdf', compact('student', 'school', 'invoiceData', 'bankAccounts'));
+
         return $pdf->download("student-{$studentId}-invoice.pdf");
     }
+
     public function exportAllStudentsLedgersPdf(Request $request)
     {
         $school = SchoolSetting::getSettings();
         $dateFrom = $request->get('from_date');
         $dateTo = $request->get('to_date');
 
-        // Get all active students
-        $students = Student::with('schoolClass')->where('is_active', true)->get();
+        // Get all active students (schema uses status, not is_active)
+        $students = Student::with('schoolClass')->where('status', 'active')->get();
 
         $allLedgers = [];
 
@@ -1512,9 +1540,6 @@ class LedgerController extends Controller
                     ->where('date', '<', $dateFrom)
                     ->selectRaw('SUM(debit) - SUM(credit) as balance')
                     ->value('balance') ?? 0;
-
-                $salesBeforeDate = $student->particulars()->sum('particular_student.sales');
-                $openingBalance += $salesBeforeDate;
             }
 
             // Get vouchers
@@ -1535,10 +1560,10 @@ class LedgerController extends Controller
             $totalCredit = $vouchers->sum('credit');
             $balance = $openingBalance + $totalDebit - $totalCredit;
 
-            $ledgerData = $vouchers->map(function($voucher) use (&$runningBalance) {
+            $ledgerData = $vouchers->map(function ($voucher) use (&$runningBalance) {
                 return [
                     'date' => $voucher->date,
-                    'particular' => $voucher->particular->name ?? 'N/A',
+                    'particular' => $voucher->particular?->name ?? 'N/A',
                     'voucher_type' => $voucher->voucher_type,
                     'voucher_number' => $voucher->voucher_number,
                     'debit' => $voucher->debit,
@@ -1546,31 +1571,33 @@ class LedgerController extends Controller
                     'balance' => 0, // Calculated in view or we can calculate here if needed better
                 ];
             });
-            
+
             // Re-calculate running balance for the array
             $running = $openingBalance;
-            $ledgerData = $ledgerData->map(function($item) use (&$running) {
+            $ledgerData = $ledgerData->map(function ($item) use (&$running) {
                 $running += $item['debit'] - $item['credit'];
                 $item['balance'] = $running;
+
                 return $item;
             });
 
-            // Only add students with transactions or balances? 
-            // User likely wants all students or at least those with activity. 
+            // Only add students with transactions or balances?
+            // User likely wants all students or at least those with activity.
             // For now, let's include all to be safe, or maybe filter?
             // "Download all students ledger" implies all.
-            
+
             $allLedgers[] = [
                 'student' => $student,
                 'ledgerData' => $ledgerData,
                 'totalDebit' => $totalDebit,
                 'totalCredit' => $totalCredit,
                 'balance' => $balance,
-                'openingBalance' => $openingBalance
+                'openingBalance' => $openingBalance,
             ];
         }
 
         $pdf = Pdf::loadView('ledgers.all-students-pdf', compact('allLedgers', 'school'));
-        return $pdf->download("all-students-ledgers.pdf");
+
+        return $pdf->download('all-students-ledgers.pdf');
     }
 }

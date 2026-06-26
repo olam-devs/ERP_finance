@@ -123,14 +123,17 @@ class SchoolController extends Controller
             'max_students' => 'nullable|integer|min:1',
             'subscription_status' => 'required|in:trial,active,suspended,cancelled',
             'subscription_expires_at' => 'nullable|date',
-            'accountant_name' => 'required|string|max:255',
-            'accountant_email' => 'required|email|unique:school_accountants,email',
+            'has_finance' => 'nullable|boolean',
+            'accountant_name' => $request->boolean('has_finance', true) ? 'required|string|max:255' : 'nullable|string|max:255',
+            'accountant_email' => $request->boolean('has_finance', true) ? 'required|email|unique:school_accountants,email' : 'nullable|email',
             'accountant_password' => 'nullable|string|min:8',
             'db_host' => 'nullable|string',
             'db_port' => 'nullable|string',
             'db_username' => 'nullable|string',
             'db_password' => 'nullable|string',
             'use_existing_database' => 'nullable|boolean',
+            'has_academics' => 'nullable|boolean',
+            'academics_db_name' => 'nullable|string|max:255',
         ];
 
         // Add existing database name validation if using existing database
@@ -316,6 +319,74 @@ class SchoolController extends Controller
     }
 
     /**
+     * Reallocate SMS credits between Finance and Academics for a school.
+     * direction: 'to_academics' or 'to_finance'
+     */
+    public function reallotSmsCredits(Request $request, School $school)
+    {
+        $request->validate([
+            'amount'    => 'required|integer|min:1',
+            'direction' => 'required|in:to_academics,to_finance',
+        ]);
+
+        $amount = (int) $request->amount;
+
+        // Resolve Academics DB name via platform_schools
+        $platformSchool = \App\Models\Platform\PlatformSchool::where('id', $school->platform_school_id)->first();
+        $academicsDb = $platformSchool?->academics_db_name ?? null;
+
+        if (!$academicsDb) {
+            return back()->with('error', 'This school has no Academics database configured — cannot reallocate.');
+        }
+
+        // Connect to Academics DB dynamically
+        config(['database.connections.academics_reallot' => array_merge(
+            config('database.connections.mysql'),
+            ['database' => $academicsDb]
+        )]);
+        DB::purge('academics_reallot');
+
+        DB::transaction(function () use ($request, $school, $amount, $academicsDb) {
+            if ($request->direction === 'to_academics') {
+                $available = $school->sms_credits_assigned - $school->sms_credits_used;
+                if ($amount > $available) {
+                    throw new \Exception("Finance only has {$available} credits available (assigned minus used).");
+                }
+                // Deduct from Finance
+                $school->decrement('sms_credits_assigned', $amount);
+                // Add to Academics sms_balances (upsert in case row missing)
+                DB::connection('academics_reallot')->table('sms_balances')
+                    ->updateOrInsert(
+                        ['school_id' => $school->id],
+                        ['sms_allocated' => DB::raw("sms_allocated + {$amount}"), 'updated_at' => now()]
+                    );
+            } else {
+                // to_finance: take from Academics
+                $acRow = DB::connection('academics_reallot')->table('sms_balances')
+                    ->where('school_id', $school->id)->first();
+                $acAvailable = $acRow ? ($acRow->sms_allocated - $acRow->sms_used) : 0;
+                if ($amount > $acAvailable) {
+                    throw new \Exception("Academics only has {$acAvailable} credits available.");
+                }
+                DB::connection('academics_reallot')->table('sms_balances')
+                    ->where('school_id', $school->id)
+                    ->decrement('sms_allocated', $amount);
+                $school->increment('sms_credits_assigned', $amount);
+            }
+        });
+
+        $label = $request->direction === 'to_academics' ? 'Finance → Academics' : 'Academics → Finance';
+        $this->activityLogger->logSuperAdminAction(
+            auth('superadmin')->user(),
+            'sms_reallocation',
+            "Reallocated {$amount} SMS credits ({$label}) for school #{$school->id}",
+            $school
+        );
+
+        return back()->with('success', "Reallocated {$amount} SMS credits ({$label}) successfully.");
+    }
+
+    /**
      * Add a new accountant to a school.
      */
     public function addAccountant(Request $request, School $school)
@@ -324,6 +395,8 @@ class SchoolController extends Controller
             'name' => 'required|string|max:255',
             'email' => 'required|email|unique:school_accountants,email',
             'password' => 'required|string|min:8',
+            'can_edit_history' => 'nullable|boolean',
+            'can_view_logs' => 'nullable|boolean',
         ]);
 
         $accountant = SchoolAccountant::create([
@@ -333,7 +406,11 @@ class SchoolController extends Controller
             'password' => Hash::make($request->password),
             'is_active' => true,
             'is_primary' => $school->accountants()->count() === 0,
+            'can_edit_history' => $request->boolean('can_edit_history'),
+            'can_view_logs' => $request->boolean('can_view_logs'),
         ]);
+
+        $this->syncAccountantPermissionsToTenant($school, $accountant);
 
         // Log the activity
         $superAdmin = auth('superadmin')->user();
@@ -361,13 +438,19 @@ class SchoolController extends Controller
             'name' => 'required|string|max:255',
             'email' => 'required|email|unique:school_accountants,email,' . $accountant->id,
             'is_active' => 'boolean',
+            'can_edit_history' => 'nullable|boolean',
+            'can_view_logs' => 'nullable|boolean',
         ]);
 
         $accountant->update([
             'name' => $request->name,
             'email' => $request->email,
             'is_active' => $request->boolean('is_active', true),
+            'can_edit_history' => $request->boolean('can_edit_history'),
+            'can_view_logs' => $request->boolean('can_view_logs'),
         ]);
+
+        $this->syncAccountantPermissionsToTenant($school, $accountant);
 
         // Log the activity
         $superAdmin = auth('superadmin')->user();
@@ -438,6 +521,40 @@ class SchoolController extends Controller
     }
 
     /**
+     * Toggle a platform flag: has_academics, cross_jump_enabled, parent_cross_access.
+     */
+    public function togglePlatformFlag(Request $request, School $school)
+    {
+        $allowed = ['has_academics', 'cross_jump_enabled', 'parent_cross_access'];
+        $flag = $request->input('flag');
+
+        if (!in_array($flag, $allowed, true)) {
+            return back()->with('error', 'Invalid flag.');
+        }
+
+        // cross_jump_enabled requires both systems to be enabled
+        if ($flag === 'cross_jump_enabled' && !$school->has_academics) {
+            return back()->with('error', 'Academics must be enabled before turning on cross-system jump.');
+        }
+
+        $newValue = !$school->$flag;
+        $school->update([$flag => $newValue]);
+
+        // Mirror to platform_schools
+        if ($school->platform_school_id) {
+            \App\Models\Platform\PlatformSchool::where('id', $school->platform_school_id)
+                ->update([$flag => $newValue]);
+        }
+
+        $label = str_replace('_', ' ', $flag);
+        $status = $newValue ? 'enabled' : 'disabled';
+        $superAdmin = auth('superadmin')->user();
+        $this->activityLogger->logSuperAdminAction($superAdmin, "toggle_{$flag}", "School {$school->name}: {$label} {$status}", $school);
+
+        return back()->with('success', ucfirst($label) . " has been {$status} for {$school->name}.");
+    }
+
+    /**
      * Sync school name from tenant database.
      */
     public function syncNameToTenant(School $school)
@@ -482,5 +599,25 @@ class SchoolController extends Controller
         );
 
         return back()->with('success', "School name synced from tenant: {$newName}");
+    }
+
+    /**
+     * Mirror accountant permission flags to the tenant users table (by email).
+     */
+    protected function syncAccountantPermissionsToTenant(School $school, SchoolAccountant $accountant): void
+    {
+        try {
+            $this->tenantManager->executeForSchool($school, function () use ($accountant) {
+                DB::connection('tenant')->table('users')
+                    ->where('email', $accountant->email)
+                    ->update([
+                        'can_edit_history' => (bool) $accountant->can_edit_history,
+                        'can_view_logs' => (bool) $accountant->can_view_logs,
+                        'updated_at' => now(),
+                    ]);
+            });
+        } catch (\Throwable $e) {
+            // Non-fatal: central record is authoritative; tenant may be single-DB setup.
+        }
     }
 }

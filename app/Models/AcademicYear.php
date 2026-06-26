@@ -3,9 +3,9 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\Pivot;
 
-class AcademicYear extends Model
+class AcademicYear extends BaseModel
 {
     use HasFactory;
 
@@ -60,7 +60,7 @@ class AcademicYear extends Model
      */
     public function feeAssignments()
     {
-        return $this->hasMany(\Illuminate\Database\Eloquent\Relations\Pivot::class, 'academic_year_id');
+        return $this->hasMany(Pivot::class, 'academic_year_id');
     }
 
     /**
@@ -68,6 +68,6 @@ class AcademicYear extends Model
      */
     public function getDisplayNameAttribute()
     {
-        return $this->name . ($this->is_current ? ' (Current)' : '');
+        return $this->name.($this->is_current ? ' (Current)' : '');
     }
 }

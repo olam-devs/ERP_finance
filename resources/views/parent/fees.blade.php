@@ -58,7 +58,7 @@
     <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         <div class="p-6 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
             <h3 class="font-bold text-gray-800" data-translate="transaction-history">Transaction History</h3>
-            <button onclick="window.print()" class="text-sm text-indigo-600 hover:text-indigo-800 font-medium">
+            <button onclick="window.print()" class="text-sm text-blue-600 hover:text-blue-800 font-medium">
                 <i class="fas fa-print mr-1"></i> <span data-translate="print">Print</span>
             </button>
         </div>

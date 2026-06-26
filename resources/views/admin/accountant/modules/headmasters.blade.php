@@ -1,145 +1,124 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Headmaster Management - {{ $settings->school_name ?? 'Darasa Finance' }}</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-</head>
-<body class="bg-gray-100">
-    <div class="max-w-7xl mx-auto px-4 py-8">
-        <!-- Back Button -->
-        <a href="{{ route('accountant.dashboard') }}" class="inline-flex items-center text-blue-600 hover:text-blue-800 mb-6">
-            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+﻿@extends('layouts.accountant')
+
+@section('title', 'Headmasters — Darasa Finance')
+@section('page_title', 'Headmasters')
+
+@section('content')
+    <div class="mx-auto max-w-5xl space-y-6">
+        <a href="{{ route('accountant.dashboard') }}" class="inline-flex items-center text-sm font-medium text-slate-600 hover:text-slate-900">
+            <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
             </svg>
-            Back to Dashboard
+            Back to dashboard
         </a>
 
-        <!-- Header -->
-        <div class="bg-white rounded-lg shadow p-6 mb-6">
-            <h1 class="text-3xl font-bold text-gray-800">Headmaster/Owner Management</h1>
-            <p class="text-gray-600 mt-2">Manage school headmasters and owners who have read-only access to financial reports</p>
+        <div class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h1 class="text-xl font-semibold text-slate-900">Headmaster / owner access</h1>
+            <p class="mt-2 text-sm text-slate-600">Read-only portal logins for school leadership.</p>
         </div>
 
         @if(session('success'))
-            <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
+            <div class="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
                 {{ session('success') }}
             </div>
         @endif
 
         @if(session('error'))
-            <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+            <div class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900">
                 {{ session('error') }}
             </div>
         @endif
 
-        <!-- Add Headmaster Form -->
-        <div class="bg-white rounded-lg shadow p-6 mb-6">
-            <h2 class="text-xl font-bold text-gray-800 mb-4">Add New Headmaster</h2>
+        <div class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h2 class="mb-4 text-lg font-semibold text-slate-900">Add headmaster</h2>
             <form method="POST" action="{{ route('accountant.headmasters.store') }}">
                 @csrf
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
                     <div>
-                        <label class="block text-gray-700 font-medium mb-2">Name *</label>
-                        <input type="text" name="name" required class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+                        <label class="mb-2 block text-sm font-medium text-slate-700">Name *</label>
+                        <input type="text" name="name" required class="w-full rounded-lg border border-slate-200 px-4 py-2 text-sm focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200">
                     </div>
                     <div>
-                        <label class="block text-gray-700 font-medium mb-2">Registration Number *</label>
-                        <input type="text" name="registration_number" required placeholder="e.g., HM001" class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
-                        <p class="text-sm text-gray-500 mt-1">This will be used to login</p>
+                        <label class="mb-2 block text-sm font-medium text-slate-700">Registration number *</label>
+                        <input type="text" name="registration_number" required placeholder="e.g. HM001" class="w-full rounded-lg border border-slate-200 px-4 py-2 text-sm focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200">
+                        <p class="mt-1 text-xs text-slate-500">Used to sign in at /headmaster/login</p>
                     </div>
                     <div>
-                        <label class="block text-gray-700 font-medium mb-2">Email (Optional)</label>
-                        <input type="email" name="email" class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+                        <label class="mb-2 block text-sm font-medium text-slate-700">Email (optional)</label>
+                        <input type="email" name="email" class="w-full rounded-lg border border-slate-200 px-4 py-2 text-sm focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200">
                     </div>
                     <div>
-                        <label class="block text-gray-700 font-medium mb-2">Phone (Optional)</label>
-                        <input type="text" name="phone" class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+                        <label class="mb-2 block text-sm font-medium text-slate-700">Phone (optional)</label>
+                        <input type="text" name="phone" class="w-full rounded-lg border border-slate-200 px-4 py-2 text-sm focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200">
                     </div>
                 </div>
                 <div class="mt-4">
-                    <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 font-semibold">
-                        Add Headmaster
+                    <button type="submit" class="inline-flex rounded-lg bg-blue-600 px-5 py-2 text-sm font-medium text-white hover:bg-blue-700">
+                        Add headmaster
                     </button>
                 </div>
             </form>
         </div>
 
-        <!-- Headmasters List -->
-        <div class="bg-white rounded-lg shadow overflow-hidden">
-            <div class="px-6 py-4 border-b">
-                <h2 class="text-xl font-bold text-gray-800">Headmasters List</h2>
+        <div class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+            <div class="border-b border-slate-200 px-6 py-4">
+                <h2 class="text-lg font-semibold text-slate-900">Headmasters</h2>
             </div>
             <table class="w-full">
-                <thead class="bg-gray-50">
+                <thead class="bg-slate-50">
                     <tr>
-                        <th class="px-6 py-3 text-left text-sm font-semibold text-gray-700">Name</th>
-                        <th class="px-6 py-3 text-left text-sm font-semibold text-gray-700">Registration Number</th>
-                        <th class="px-6 py-3 text-left text-sm font-semibold text-gray-700">Email</th>
-                        <th class="px-6 py-3 text-left text-sm font-semibold text-gray-700">Phone</th>
-                        <th class="px-6 py-3 text-center text-sm font-semibold text-gray-700">Status</th>
-                        <th class="px-6 py-3 text-center text-sm font-semibold text-gray-700">Actions</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">Name</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">Registration</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">Email</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">Phone</th>
+                        <th class="px-6 py-3 text-center text-xs font-semibold uppercase tracking-wide text-slate-600">Status</th>
+                        <th class="px-6 py-3 text-center text-xs font-semibold uppercase tracking-wide text-slate-600">Actions</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-200">
+                <tbody class="divide-y divide-slate-100">
                     @forelse($headmasters as $headmaster)
-                        <tr class="hover:bg-gray-50">
-                            <td class="px-6 py-4 text-sm font-medium text-gray-900">{{ $headmaster->name }}</td>
-                            <td class="px-6 py-4 text-sm text-gray-600">
-                                <code class="bg-gray-100 px-2 py-1 rounded">{{ $headmaster->registration_number }}</code>
+                        <tr class="hover:bg-slate-50/80">
+                            <td class="px-6 py-4 text-sm font-medium text-slate-900">{{ $headmaster->name }}</td>
+                            <td class="px-6 py-4 text-sm text-slate-600">
+                                <code class="rounded bg-slate-100 px-2 py-1 text-xs">{{ $headmaster->registration_number }}</code>
                             </td>
-                            <td class="px-6 py-4 text-sm text-gray-600">{{ $headmaster->email ?? 'N/A' }}</td>
-                            <td class="px-6 py-4 text-sm text-gray-600">{{ $headmaster->phone ?? 'N/A' }}</td>
+                            <td class="px-6 py-4 text-sm text-slate-600">{{ $headmaster->email ?? '—' }}</td>
+                            <td class="px-6 py-4 text-sm text-slate-600">{{ $headmaster->phone ?? '—' }}</td>
                             <td class="px-6 py-4 text-center">
-                                <span class="px-2 py-1 text-xs font-semibold rounded-full {{ $headmaster->is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800' }}">
+                                <span class="inline-flex rounded-full px-2 py-0.5 text-xs font-medium {{ $headmaster->is_active ? 'bg-emerald-50 text-emerald-800 ring-1 ring-emerald-100' : 'bg-slate-100 text-slate-600 ring-1 ring-slate-200' }}">
                                     {{ $headmaster->is_active ? 'Active' : 'Inactive' }}
                                 </span>
                             </td>
-                            <td class="px-6 py-4 text-center">
+                            <td class="px-6 py-4 text-center text-sm">
                                 <form method="POST" action="{{ route('accountant.headmasters.toggle', $headmaster) }}" class="inline">
                                     @csrf
-                                    <button type="submit" class="text-blue-600 hover:text-blue-800 mr-3">
+                                    <button type="submit" class="font-medium text-slate-700 hover:text-slate-900">
                                         {{ $headmaster->is_active ? 'Deactivate' : 'Activate' }}
                                     </button>
                                 </form>
-                                <form method="POST" action="{{ route('accountant.headmasters.destroy', $headmaster) }}" class="inline" onsubmit="return confirm('Are you sure you want to delete this headmaster?')">
+                                <span class="mx-2 text-slate-300">|</span>
+                                <form method="POST" action="{{ route('accountant.headmasters.destroy', $headmaster) }}" class="inline" onsubmit="return confirm('Delete this headmaster?')">
                                     @csrf
                                     @method('DELETE')
-                                    <button type="submit" class="text-red-600 hover:text-red-800">Delete</button>
+                                    <button type="submit" class="font-medium text-red-600 hover:text-red-700">Delete</button>
                                 </form>
                             </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="6" class="px-6 py-8 text-center text-gray-500">No headmasters added yet</td>
+                            <td colspan="6" class="px-6 py-8 text-center text-sm text-slate-500">No headmasters yet.</td>
                         </tr>
                     @endforelse
                 </tbody>
             </table>
         </div>
 
-        <!-- Info Section -->
-        <div class="mt-6 bg-blue-50 border-l-4 border-blue-500 p-4 rounded">
-            <div class="flex">
-                <svg class="h-6 w-6 text-blue-400 mr-3" fill="currentColor" viewBox="0 0 20 20">
-                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
-                </svg>
-                <div>
-                    <h3 class="text-sm font-semibold text-blue-800">About Headmaster Access</h3>
-                    <p class="text-sm text-blue-700 mt-1">
-                        Headmasters/Owners can login using only their registration number at <strong>/headmaster/login</strong>. They have read-only access to:
-                    </p>
-                    <ul class="text-sm text-blue-700 mt-2 ml-5 list-disc">
-                        <li>Financial summaries and statistics</li>
-                        <li>Student ledgers</li>
-                        <li>Particular ledgers</li>
-                        <li>Overdue payments</li>
-                        <li>Student invoices</li>
-                    </ul>
-                </div>
-            </div>
+        <div class="rounded-xl border border-slate-200 bg-slate-50 p-5 text-sm text-slate-700">
+            <h3 class="font-semibold text-slate-900">About headmaster access</h3>
+            <p class="mt-2">
+                Headmasters sign in with their registration number at <strong class="font-mono text-slate-800">/headmaster/login</strong>.
+                Access is read-only for summaries, ledgers, overdue amounts, and invoices.
+            </p>
         </div>
     </div>
-</body>
-</html>
+@endsection

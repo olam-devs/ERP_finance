@@ -1,59 +1,10 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ $school->name }} - School Details</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-</head>
-<body class="bg-gray-100">
-    <!-- Navigation -->
-    <nav class="bg-white shadow-lg">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between h-16">
-                <div class="flex items-center gap-4">
-                    <a href="{{ route('superadmin.dashboard') }}" class="text-2xl font-bold text-indigo-600">Darasa Finance</a>
-                    <span class="text-gray-400">|</span>
-                    <span class="text-gray-700">{{ $school->name }}</span>
-                </div>
-                <div class="flex items-center gap-4">
-                    <a href="{{ route('superadmin.dashboard') }}" class="text-gray-600 hover:text-gray-800">Dashboard</a>
-                    <a href="{{ route('superadmin.schools.index') }}" class="text-gray-600 hover:text-gray-800">Schools</a>
-                    <a href="{{ route('superadmin.activity-logs') }}" class="text-gray-600 hover:text-gray-800">Logs</a>
-                    <a href="{{ route('superadmin.admins.index') }}" class="text-gray-600 hover:text-gray-800">Super Admins</a>
-                    <a href="{{ route('superadmin.profile') }}" class="text-gray-600 hover:text-indigo-600">{{ auth('superadmin')->user()->name }}</a>
-                    <form method="POST" action="{{ route('superadmin.logout') }}">
-                        @csrf
-                        <button type="submit" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">Logout</button>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </nav>
+@extends('layouts.superadmin')
 
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        @if(session('success'))
-            <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
-                {{ session('success') }}
-            </div>
-        @endif
+@section('title', 'School details — Super Admin')
+@section('nav_title', 'School details')
 
-        @if(session('error'))
-            <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-                {{ session('error') }}
-            </div>
-        @endif
-
-        @if($errors->any())
-            <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-                <ul class="list-disc list-inside">
-                    @foreach($errors->all() as $error)
-                        <li>{{ $error }}</li>
-                    @endforeach
-                </ul>
-            </div>
-        @endif
-
+@section('content')
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <!-- School Header -->
         <div class="bg-white rounded-lg shadow p-6 mb-6">
             <div class="flex justify-between items-start">
@@ -67,7 +18,7 @@
                             <div class="flex gap-2 mt-1">
                                 <form method="POST" action="{{ route('superadmin.schools.sync-name-to-tenant', $school) }}" class="inline">
                                     @csrf
-                                    <button type="submit" class="text-xs bg-indigo-600 text-white px-2 py-1 rounded hover:bg-indigo-700">
+                                    <button type="submit" class="text-xs bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700">
                                         Sync to Tenant
                                     </button>
                                 </form>
@@ -110,7 +61,7 @@
         <div class="grid grid-cols-1 md:grid-cols-5 gap-6 mb-6">
             <div class="bg-white rounded-lg shadow p-6">
                 <p class="text-gray-500 text-sm">Total Students</p>
-                <p class="text-3xl font-bold text-indigo-600">{{ number_format($school->student_count ?? 0) }}</p>
+                <p class="text-3xl font-bold text-blue-600">{{ number_format($school->student_count ?? 0) }}</p>
             </div>
             <div class="bg-white rounded-lg shadow p-6">
                 <p class="text-gray-500 text-sm">SMS Assigned</p>
@@ -136,6 +87,99 @@
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <!-- School Information -->
             <div class="lg:col-span-2 space-y-6">
+                <!-- Platform Systems Configuration -->
+                <div class="bg-white rounded-lg shadow p-6">
+                    <h2 class="text-xl font-bold mb-1">Platform Systems</h2>
+                    <p class="text-sm text-gray-500 mb-4">School code: <span class="font-mono font-bold text-blue-700">{{ $school->code ?? 'Not assigned' }}</span></p>
+
+                    @php
+                        $flags = [
+                            ['key' => 'has_academics',      'label' => 'Darasa Academics',        'desc' => 'Classes, exams, attendance, report cards'],
+                            ['key' => 'cross_jump_enabled',  'label' => 'Cross-System Jump (SSO)', 'desc' => 'Allowed users jump between Finance & Academics without re-login'],
+                            ['key' => 'parent_cross_access', 'label' => 'Parent Cross-Access',     'desc' => 'Parents can jump to Finance fee portal from Academics'],
+                        ];
+                    @endphp
+
+                    <div class="space-y-3">
+                        <!-- Finance always on -->
+                        <div class="flex items-center justify-between p-3 rounded-lg bg-blue-50 border border-blue-200">
+                            <div>
+                                <div class="font-semibold text-blue-800">Darasa Finance</div>
+                                <div class="text-xs text-gray-500">Fees, invoices, payroll</div>
+                            </div>
+                            <span class="px-3 py-1 bg-blue-600 text-white rounded-full text-sm font-semibold">Always On</span>
+                        </div>
+
+                        @foreach($flags as $flag)
+                        <div class="flex items-center justify-between p-3 rounded-lg border {{ $school->{$flag['key']} ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-200' }}">
+                            <div>
+                                <div class="font-semibold {{ $school->{$flag['key']} ? 'text-green-800' : 'text-gray-700' }}">{{ $flag['label'] }}</div>
+                                <div class="text-xs text-gray-500">{{ $flag['desc'] }}</div>
+                            </div>
+                            <form method="POST" action="{{ route('superadmin.schools.toggle-platform-flag', $school) }}" class="inline">
+                                @csrf
+                                <input type="hidden" name="flag" value="{{ $flag['key'] }}">
+                                <button type="submit" class="px-3 py-1 rounded-full text-sm font-semibold {{ $school->{$flag['key']} ? 'bg-green-600 text-white hover:bg-green-700' : 'bg-gray-300 text-gray-700 hover:bg-gray-400' }}">
+                                    {{ $school->{$flag['key']} ? 'Enabled' : 'Disabled' }}
+                                </button>
+                            </form>
+                        </div>
+                        @endforeach
+
+                        @if($school->has_academics)
+                        <div class="mt-2 p-3 bg-gray-50 border rounded-lg text-sm">
+                            <span class="font-medium text-gray-600">Academics DB:</span>
+                            <span class="font-mono text-gray-800">{{ $school->academics_db_name ?: 'Not set' }}</span>
+                        </div>
+                        @endif
+                    </div>
+                </div>
+
+                <!-- Student & Class Registry Quick Links -->
+                @if($school->platform_school_id)
+                <div class="bg-white rounded-lg shadow p-6">
+                    <h2 class="text-xl font-bold mb-4">Central Registry</h2>
+                    <div class="grid grid-cols-3 gap-4">
+                        <a href="{{ route('superadmin.schools.classes', $school) }}"
+                           class="flex items-center gap-3 p-4 border rounded-lg hover:bg-blue-50 hover:border-blue-300 transition">
+                            <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                                <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                                </svg>
+                            </div>
+                            <div>
+                                <div class="font-semibold text-gray-800">Manage Classes</div>
+                                <div class="text-xs text-gray-500">Create &amp; sync class definitions</div>
+                            </div>
+                        </a>
+                        <a href="{{ route('superadmin.schools.students', $school) }}"
+                           class="flex items-center gap-3 p-4 border rounded-lg hover:bg-green-50 hover:border-green-300 transition">
+                            <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                                <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                                </svg>
+                            </div>
+                            <div>
+                                <div class="font-semibold text-gray-800">Manage Students</div>
+                                <div class="text-xs text-gray-500">Add, import &amp; sync students</div>
+                            </div>
+                        </a>
+                        <a href="{{ route('superadmin.schools.grants', $school) }}"
+                           class="flex items-center gap-3 p-4 border rounded-lg hover:bg-purple-50 hover:border-purple-300 transition">
+                            <div class="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                                <svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                </svg>
+                            </div>
+                            <div>
+                                <div class="font-semibold text-gray-800">Cross-Access Grants</div>
+                                <div class="text-xs text-gray-500">Grant SSO jump to headmasters &amp; owners</div>
+                            </div>
+                        </a>
+                    </div>
+                </div>
+                @endif
+
                 <!-- SMS Credits Management -->
                 <div class="bg-white rounded-lg shadow p-6">
                     <h2 class="text-xl font-bold mb-4">SMS Credits Management</h2>
@@ -144,7 +188,7 @@
                         <div class="grid grid-cols-3 gap-4">
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-2">Action</label>
-                                <select name="action" class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500">
+                                <select name="action" class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
                                     <option value="add">Add Credits</option>
                                     <option value="set">Set Total Credits</option>
                                 </select>
@@ -152,16 +196,75 @@
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-2">Amount</label>
                                 <input type="number" name="sms_credits" min="0" required
-                                    class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500">
+                                    class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
                             </div>
                             <div class="flex items-end">
-                                <button type="submit" class="w-full bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700">
+                                <button type="submit" class="w-full bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
                                     Update Credits
                                 </button>
                             </div>
                         </div>
                     </form>
                 </div>
+
+                <!-- SMS Reallocation between Finance & Academics -->
+                @if($school->platform_school_id)
+                <div class="bg-white rounded-lg shadow p-6">
+                    <h2 class="text-xl font-bold mb-1">Reallocate SMS Between Systems</h2>
+                    <p class="text-sm text-gray-500 mb-4">Move unused credits between Finance and Academics for this school. Only available credits (assigned − used) can be moved.</p>
+
+                    @php
+                        $platSchool = \App\Models\Platform\PlatformSchool::find($school->platform_school_id);
+                        $acRow = null;
+                        if ($platSchool?->academics_db_name) {
+                            try {
+                                config(['database.connections.ac_tmp' => array_merge(config('database.connections.mysql'), ['database' => $platSchool->academics_db_name])]);
+                                \Illuminate\Support\Facades\DB::purge('ac_tmp');
+                                $acRow = \Illuminate\Support\Facades\DB::connection('ac_tmp')->table('sms_balances')->where('school_id', $school->id)->first();
+                            } catch (\Exception $e) {}
+                        }
+                        $finAvail = ($school->sms_credits_assigned ?? 0) - ($school->sms_credits_used ?? 0);
+                        $acAvail  = $acRow ? ($acRow->sms_allocated - $acRow->sms_used) : 0;
+                    @endphp
+
+                    <div class="grid grid-cols-2 gap-4 mb-4 text-center">
+                        <div class="bg-blue-50 rounded-lg p-4">
+                            <p class="text-xs text-gray-500 uppercase tracking-wide">Finance Available</p>
+                            <p class="text-2xl font-bold text-blue-700">{{ number_format($finAvail) }}</p>
+                            <p class="text-xs text-gray-400">of {{ number_format($school->sms_credits_assigned ?? 0) }} assigned</p>
+                        </div>
+                        <div class="bg-green-50 rounded-lg p-4">
+                            <p class="text-xs text-gray-500 uppercase tracking-wide">Academics Available</p>
+                            <p class="text-2xl font-bold text-green-700">{{ number_format($acAvail) }}</p>
+                            <p class="text-xs text-gray-400">of {{ number_format($acRow?->sms_allocated ?? 0) }} allocated</p>
+                        </div>
+                    </div>
+
+                    <form method="POST" action="{{ route('superadmin.schools.reallot-sms', $school) }}">
+                        @csrf
+                        <div class="grid grid-cols-3 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Direction</label>
+                                <select name="direction" class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+                                    <option value="to_academics">Finance → Academics</option>
+                                    <option value="to_finance">Academics → Finance</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Credits to Move</label>
+                                <input type="number" name="amount" min="1" required
+                                    class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                                    placeholder="e.g. 500">
+                            </div>
+                            <div class="flex items-end">
+                                <button type="submit" class="w-full bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700">
+                                    Reallocate
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                @endif
 
                 <!-- Basic Info -->
                 <div class="bg-white rounded-lg shadow p-6">
@@ -206,7 +309,7 @@
                         @csrf
                         <div class="flex gap-4">
                             <input type="password" name="master_password" placeholder="Master Password" required
-                                class="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                class="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
                             <button type="submit" class="bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700">
                                 Impersonate
                             </button>
@@ -300,7 +403,7 @@
                                         <p class="text-sm text-gray-600">{{ $accountant->email }}</p>
                                     </div>
                                     @if($accountant->is_primary)
-                                        <span class="text-xs px-2 py-1 bg-indigo-100 text-indigo-800 rounded-full">Primary</span>
+                                        <span class="text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded-full">Primary</span>
                                     @endif
                                 </div>
                                 <div class="flex gap-2 items-center mt-2 flex-wrap">
@@ -375,8 +478,22 @@
                         class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
                 </div>
 
+                <div class="mb-4 space-y-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                    <p class="text-sm font-medium text-slate-800">Permissions</p>
+                    <label class="flex items-center gap-2 text-sm">
+                        <input type="hidden" name="can_edit_history" value="0">
+                        <input type="checkbox" name="can_edit_history" value="1" class="rounded">
+                        <span>Edit history (reconciliation)</span>
+                    </label>
+                    <label class="flex items-center gap-2 text-sm">
+                        <input type="hidden" name="can_view_logs" value="0">
+                        <input type="checkbox" name="can_view_logs" value="1" class="rounded">
+                        <span>View activity logs</span>
+                    </label>
+                </div>
+
                 <div class="flex gap-2">
-                    <button type="submit" class="flex-1 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700">
+                    <button type="submit" class="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
                         Add Accountant
                     </button>
                     <button type="button" onclick="hideAddAccountantModal()"
@@ -421,9 +538,11 @@
             </form>
         </div>
     </div>
+@endsection
 
+@push('scripts')
     <script>
-    function showAddAccountantModal() {
+function showAddAccountantModal() {
         document.getElementById('addAccountantModal').classList.remove('hidden');
     }
 
@@ -466,5 +585,4 @@
         });
     }
     </script>
-</body>
-</html>
+@endpush

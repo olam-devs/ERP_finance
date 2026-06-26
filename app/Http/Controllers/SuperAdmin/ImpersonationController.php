@@ -73,7 +73,7 @@ class ImpersonationController extends Controller
 
         if ($schoolId && $superAdminId) {
             $school = School::find($schoolId);
-            $superAdmin = \App\Models\Central\SuperAdmin::find($superAdminId);
+            $superAdmin = \App\Models\Platform\PlatformSuperAdmin::find($superAdminId);
 
             if ($school && $superAdmin) {
                 $this->activityLogger->logImpersonationEnd($superAdmin, $school);

@@ -3,9 +3,8 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
 
-class SchoolSetting extends Model
+class SchoolSetting extends BaseModel
 {
     use HasFactory;
 
@@ -22,12 +21,22 @@ class SchoolSetting extends Model
         'po_box',
         'region',
         'phone',
+        'office_whatsapp_number',
+        'parent_messenger_pin',
         'email',
         'logo_path',
+        'show_logo_on_pdfs',
         'bank_name',
         'bank_account_number',
         'bank_account_name',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'show_logo_on_pdfs' => 'boolean',
+        ];
+    }
 
     public static function getSettings()
     {

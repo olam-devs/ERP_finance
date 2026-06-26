@@ -9,7 +9,7 @@
 <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
     <!-- Total Fees -->
     <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 relative overflow-hidden group hover:shadow-md transition">
-        <div class="absolute top-0 right-0 w-24 h-24 bg-indigo-50 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
+        <div class="absolute top-0 right-0 w-24 h-24 bg-blue-50 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
         <div class="relative z-10">
             <p class="text-sm text-gray-500 font-medium uppercase tracking-wider mb-1" data-translate="total-fees">Total Fees</p>
             <h3 class="text-3xl font-bold text-gray-800">TSh {{ number_format($totalFees) }}</h3>
@@ -32,10 +32,10 @@
     </div>
 
     <!-- Outstanding Balance -->
-    <div class="bg-gradient-to-br from-indigo-600 to-purple-700 rounded-2xl p-6 shadow-lg text-white relative overflow-hidden group">
+    <div class="bg-gradient-to-br from-blue-600 to-blue-700 rounded-2xl p-6 shadow-lg text-white relative overflow-hidden group">
         <div class="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl -mr-10 -mt-10"></div>
         <div class="relative z-10">
-            <p class="text-indigo-200 font-medium uppercase tracking-wider mb-1" data-translate="outstanding-balance">Outstanding Balance</p>
+            <p class="text-blue-200 font-medium uppercase tracking-wider mb-1" data-translate="outstanding-balance">Outstanding Balance</p>
             <h3 class="text-4xl font-bold mb-2">TSh {{ number_format($balance) }}</h3>
             
             @if($balance > 0)
@@ -59,7 +59,7 @@
                 <i class="fas fa-bolt text-yellow-500"></i> <span data-translate="quick-actions">Quick Actions</span>
             </h3>
             <div class="space-y-3">
-                <a href="{{ route('parent.invoices') }}" class="block w-full text-center bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold py-3 px-4 rounded-xl transition">
+                <a href="{{ route('parent.invoices') }}" class="block w-full text-center bg-blue-50 hover:bg-blue-100 text-blue-700 font-semibold py-3 px-4 rounded-xl transition">
                     <span data-translate="view-invoice">View Current Invoice</span>
                 </a>
                 <a href="{{ route('parent.fees') }}" class="block w-full text-center bg-gray-50 hover:bg-gray-100 text-gray-700 font-semibold py-3 px-4 rounded-xl transition">
@@ -71,19 +71,19 @@
             </div>
         </div>
 
-        <div class="bg-indigo-900 rounded-2xl shadow-lg p-6 text-white text-center">
+        <div class="bg-blue-900 rounded-2xl shadow-lg p-6 text-white text-center">
             <div class="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4 backdrop-blur-sm">
                 <i class="fas fa-headset text-2xl"></i>
             </div>
             <h3 class="font-bold text-lg mb-2" data-translate="need-help">Need Help?</h3>
-            <p class="text-indigo-200 text-sm mb-4" data-translate="contact-admin">Contact school administration regarding fee discrepancies.</p>
+            <p class="text-blue-200 text-sm mb-4" data-translate="contact-admin">Contact school administration regarding fee discrepancies.</p>
             @if($school->phone)
-                <a href="tel:{{ $school->phone }}" class="inline-block bg-white text-indigo-900 font-bold py-2 px-6 rounded-full hover:bg-indigo-50 transition mb-2">
+                <a href="tel:{{ $school->phone }}" class="inline-block bg-white text-blue-900 font-bold py-2 px-6 rounded-full hover:bg-blue-50 transition mb-2">
                     <i class="fas fa-phone mr-2"></i>{{ $school->phone }}
                 </a>
             @endif
             @if($school->email)
-                <a href="mailto:{{ $school->email }}" class="block text-indigo-200 hover:text-white text-sm mt-2">
+                <a href="mailto:{{ $school->email }}" class="block text-blue-200 hover:text-white text-sm mt-2">
                     <i class="fas fa-envelope mr-1"></i>{{ $school->email }}
                 </a>
             @endif
@@ -138,7 +138,7 @@
             
             @if(count($recentTransactions) > 0)
                 <div class="mt-6 text-center">
-                    <a href="{{ route('parent.fees') }}" class="text-indigo-600 font-medium hover:text-indigo-800 text-sm">
+                    <a href="{{ route('parent.fees') }}" class="text-blue-600 font-medium hover:text-blue-800 text-sm">
                         <span data-translate="view-all-history">View All History</span> &rarr;
                     </a>
                 </div>

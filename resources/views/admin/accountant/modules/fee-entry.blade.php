@@ -1,71 +1,33 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>Fee Entry - Darasa Finance</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+﻿@extends('layouts.accountant')
+
+@section('title', 'Fee Entry — Darasa Finance')
+@section('page_title', 'Fee entry')
+
+@push('head')
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-</head>
-<body class="bg-gray-100">
-    @include('components.sidebar')
+@endpush
 
-    <!-- Header -->
-    <nav class="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-4 shadow-lg mb-6 sticky top-0 z-40">
-        <div class="container mx-auto flex justify-between items-center">
-            <div class="flex items-center gap-4">
-                <!-- Menu Button -->
-                <button onclick="toggleSidebar()" class="hover:bg-white hover:bg-opacity-20 p-2 rounded transition">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
-                    </svg>
-                </button>
-                <!-- Clickable Logo -->
-                <a href="{{ route('accountant.dashboard') }}" class="flex items-center gap-2 hover:opacity-80 transition">
-                    @if($settings->logo_path && file_exists(public_path('storage/' . $settings->logo_path)))
-                        <img src="{{ asset('storage/' . $settings->logo_path) }}" alt="School Logo" class="w-10 h-10 rounded-lg bg-white p-1 object-contain">
-                    @else
-                        <div class="bg-white bg-opacity-20 p-2 rounded-lg">
-                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
-                            </svg>
-                        </div>
-                    @endif
-                    <h1 class="text-2xl font-bold">💰 Fee Entry</h1>
-                </a>
-            </div>
-            <div class="flex gap-3 items-center">
-                <form method="POST" action="{{ route('logout') }}">
-                    @csrf
-                    <button type="submit" class="bg-red-500 hover:bg-red-600 px-4 py-2 rounded transition">Logout</button>
-                </form>
-            </div>
-        </div>
-    </nav>
-
-    <!-- Module Content -->
-    <div class="container mx-auto p-6">
+@section('content')
         <div>
             <div class="flex justify-between items-center mb-6">
-                <h2 class="text-3xl font-bold text-purple-600">💰 Fee Entry</h2>
+                <h2 class="text-xl font-semibold text-slate-900 md:text-2xl">Fee entry</h2>
                 <div class="flex gap-3">
-                    <button onclick="showScholarshipsManager()" class="bg-amber-500 hover:bg-amber-600 text-white px-6 py-3 rounded-lg shadow transition">
-                        🎓 Scholarships
+                    <button type="button" onclick="showScholarshipsManager()" class="inline-flex items-center rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-800 hover:bg-slate-50">
+                        Scholarships
                     </button>
-                    <button onclick="showCreateVoucherForm()" class="bg-purple-500 hover:bg-purple-600 text-white px-6 py-3 rounded-lg shadow transition">
-                        ➕ Record New Entry
+                    <button type="button" onclick="showCreateVoucherForm()" class="inline-flex items-center rounded-xl bg-gradient-to-r from-blue-500 to-sky-600 px-4 py-2 text-sm font-semibold text-white shadow-md shadow-blue-500/25 transition hover:from-blue-600 hover:to-sky-700">
+                        Record new entry
                     </button>
                 </div>
             </div>
             <div id="vouchersList" class="mt-4"></div>
             <div id="voucherFormContainer"></div>
         </div>
-    </div>
 
-    <!-- Module Scripts -->
+@endsection
+
+@push('scripts')
     <script>
         const API_BASE = '/api';
         let allBooks = [];
@@ -75,6 +37,8 @@
         let currentVoucherPage = 1;
         let voucherDateFilters = { from: '', to: '' };
         let filteredStudentsForVoucher = [];
+        /** Prevents double POST if Save is clicked twice or Enter is pressed before the first request finishes. */
+        let feeEntrySaveInFlight = false;
 
         // Configure axios
         axios.defaults.headers.common['X-CSRF-TOKEN'] = document.querySelector('meta[name="csrf-token"]').content;
@@ -87,6 +51,42 @@
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2
             });
+        }
+
+        /**
+         * Debit/Credit columns on the fee-entry voucher list (display only).
+         * Receipts are still saved with the amount in `debit` in the database (book/student logic);
+         * listing them under Credit here makes "charge vs payment" obvious.
+         */
+        function feeEntryVoucherListDrCr(voucher) {
+            const type = voucher.voucher_type || '';
+            const dr = parseFloat(voucher.debit) || 0;
+            const cr = parseFloat(voucher.credit) || 0;
+            if (type === 'Receipt') {
+                return { dr: 0, cr: dr };
+            }
+            return { dr, cr };
+        }
+
+        // Money input formatting (commas) while keeping numeric payloads
+        function parseMoneyInput(value) {
+            if (value === null || value === undefined) return 0;
+            const cleaned = String(value).replace(/,/g, '').trim();
+            const n = parseFloat(cleaned);
+            return Number.isFinite(n) ? n : 0;
+        }
+
+        function formatMoneyForInput(value) {
+            const n = parseMoneyInput(value);
+            return n.toLocaleString('en-TZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
+        function attachMoneyFormatting(inputId) {
+            const el = document.getElementById(inputId);
+            if (!el) return;
+            el.setAttribute('inputmode', 'decimal');
+            el.addEventListener('focus', () => { el.value = String(el.value || '').replace(/,/g, ''); });
+            el.addEventListener('blur', () => { if (el.value !== '') el.value = formatMoneyForInput(el.value); });
         }
 
         // Load initial data on page load
@@ -156,6 +156,9 @@
                     </div>
 
                     <div class="overflow-x-auto">
+                        <p class="mb-2 text-xs text-slate-600">
+                            <strong>List columns:</strong> <span class="text-red-700">Debit</span> shows fee charges (Sales). <span class="text-green-700">Credit</span> shows payments (Receipt). Receipts are still stored as debit in the database for cash/book ledgers; this table only rearranges the display.
+                        </p>
                         <table class="w-full border-2 border-gray-300 rounded-lg">
                             <thead class="bg-purple-100">
                                 <tr>
@@ -164,8 +167,8 @@
                                     <th class="p-3 text-left">Particular</th>
                                     <th class="p-3 text-left">Type</th>
                                     <th class="p-3 text-left">Voucher #</th>
-                                    <th class="p-3 text-right">Debit</th>
-                                    <th class="p-3 text-right">Credit</th>
+                                    <th class="p-3 text-right">Debit (DR)<br><span class="text-[10px] font-normal text-slate-500">Charges</span></th>
+                                    <th class="p-3 text-right">Credit (CR)<br><span class="text-[10px] font-normal text-slate-500">Payments / out</span></th>
                                     <th class="p-3 text-left">Notes</th>
                                     <th class="p-3 text-left">Actions</th>
                                 </tr>
@@ -181,14 +184,17 @@
                     // Different styling for expense and suspense entries
                     const isExpense = particularName === 'Expense';
                     const isSuspense = particularName.includes('Suspense');
-                    const rowClass = isExpense ? 'bg-orange-50' : (isSuspense ? 'bg-amber-50' : '');
+                    const isAdvanceUsed = voucher.payment_by_receipt_to === 'Advance Used';
+                    const rowClass = isAdvanceUsed ? 'bg-indigo-50' : (isExpense ? 'bg-orange-50' : (isSuspense ? 'bg-amber-50' : ''));
+                    const listAmt = feeEntryVoucherListDrCr(voucher);
 
                     html += `
                         <tr class="border-t hover:bg-purple-50 ${rowClass}">
                             <td class="p-3">${voucher.date}</td>
                             <td class="p-3 font-semibold">${studentName}</td>
                             <td class="p-3">
-                                ${isExpense ? '<span class="px-2 py-1 rounded text-xs font-bold bg-orange-200 text-orange-800">' + particularName + '</span>' :
+                                ${isAdvanceUsed ? '<span class="px-2 py-1 rounded text-xs font-bold bg-indigo-200 text-indigo-900">' + particularName + ' · ADVANCE</span>' :
+                                  isExpense ? '<span class="px-2 py-1 rounded text-xs font-bold bg-orange-200 text-orange-800">' + particularName + '</span>' :
                                   isSuspense ? '<span class="px-2 py-1 rounded text-xs font-bold bg-amber-200 text-amber-800">' + particularName + '</span>' :
                                   particularName}
                             </td>
@@ -198,14 +204,15 @@
                                 'bg-blue-200 text-blue-800'
                             }">${voucher.voucher_type}</span></td>
                             <td class="p-3 font-mono text-sm">${voucher.voucher_number}</td>
-                            <td class="p-3 text-right font-bold text-red-600">${formatTSh(voucher.debit)}</td>
-                            <td class="p-3 text-right font-bold text-green-600">${formatTSh(voucher.credit)}</td>
+                            <td class="p-3 text-right font-bold text-red-600">${formatTSh(listAmt.dr)}</td>
+                            <td class="p-3 text-right font-bold text-green-600">${formatTSh(listAmt.cr)}</td>
                             <td class="p-3 text-xs text-gray-600">${voucher.notes || '-'}</td>
                             <td class="p-3">
                                 <div class="flex gap-2">
-                                    <button onclick="deleteVoucher(${voucher.id})" class="bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded text-xs">
-                                        🗑️ Delete
-                                    </button>
+                                    ${voucher.voided_at
+                                        ? '<span class="px-2 py-1 rounded text-xs font-semibold bg-slate-200 text-slate-700" title="Voided on ' + voucher.voided_at + '">Voided</span>'
+                                        : '<button onclick="voidVoucher(' + voucher.id + ')" class="bg-amber-500 hover:bg-amber-600 text-white px-2 py-1 rounded text-xs" title="Reverse this voucher; the record stays in the ledger for audit">Void</button>'
+                                    }
                                 </div>
                             </td>
                         </tr>
@@ -272,7 +279,7 @@
 
                 document.getElementById('vouchersList').innerHTML = html;
             } catch (error) {
-                alert('Error loading vouchers: ' + error.message);
+                showDarasaToast({ type: 'error', title: 'Fee entries', message: darasaAxiosMessage(error) });
             }
         }
 
@@ -285,7 +292,7 @@
                 voucherDateFilters.to = toDate;
                 loadVouchers(1); // Reset to page 1 when filtering
             } else {
-                alert('⚠️ Please select both From and To dates');
+                showDarasaToast({ type: 'warning', title: 'Date filter', message: 'Please select both From and To dates.' });
             }
         }
 
@@ -375,7 +382,7 @@
                                 <!-- Payment Info Display -->
                                 <div id="paymentInfoDisplay" class="bg-green-50 border-2 border-green-300 rounded p-2 mb-2 hidden">
                                     <h4 class="text-xs font-bold text-green-700 mb-2">💰 Payment Information</h4>
-                                    <div class="grid grid-cols-3 gap-2">
+                                    <div class="grid grid-cols-4 gap-2">
                                         <div class="bg-white p-2 rounded border">
                                             <p class="text-xs text-gray-600">Supposed Amount:</p>
                                             <p id="supposedAmount" class="text-sm font-bold text-blue-700">TSh 0.00</p>
@@ -388,13 +395,34 @@
                                             <p class="text-xs text-gray-600">Outstanding:</p>
                                             <p id="outstandingBalance" class="text-sm font-bold text-red-700">TSh 0.00</p>
                                         </div>
+                                        <div class="bg-indigo-50 p-2 rounded border border-indigo-300">
+                                            <p class="text-xs text-gray-600">Advance available:</p>
+                                            <p id="advanceAvailable" class="text-sm font-bold text-indigo-700">TSh 0.00</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Apply Advance row: only useful for Receipt type when there is outstanding + advance -->
+                                <div id="applyAdvanceRow" class="hidden bg-indigo-50 border-2 border-indigo-300 rounded p-2 mb-2">
+                                    <div class="flex items-end gap-2 flex-wrap">
+                                        <div class="flex-1 min-w-[200px]">
+                                            <label class="block text-xs font-bold text-indigo-800 mb-1">Use advance balance (TSh)</label>
+                                            <input type="text" id="applyAdvanceAmount" inputmode="decimal"
+                                                class="w-full border-2 border-indigo-300 rounded px-3 py-1.5 text-sm focus:border-indigo-500 focus:outline-none"
+                                                placeholder="0.00">
+                                            <p class="text-[11px] text-indigo-700 mt-1">Amount must be \u2264 available advance and \u2264 outstanding for this particular.</p>
+                                        </div>
+                                        <button type="button" id="applyAdvanceBtn" onclick="applyAdvanceToParticular()"
+                                            class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2 rounded font-bold text-xs transition">
+                                            Apply advance
+                                        </button>
                                     </div>
                                 </div>
 
                                 <div class="grid grid-cols-2 gap-3">
                                     <div>
                                         <label class="block text-xs font-bold mb-1">Amount (TSh) *</label>
-                                        <input type="number" step="0.01" id="voucherAmount" required
+                                        <input type="text" id="voucherAmount" required
                                             class="w-full border-2 border-gray-300 rounded px-3 py-1.5 text-sm focus:border-purple-500 focus:outline-none"
                                             placeholder="0.00">
                                     </div>
@@ -409,10 +437,10 @@
                             </div>
 
                             <div>
-                                <label class="block text-xs font-bold mb-1">Notes (Optional)</label>
-                                <textarea id="voucherNotes" rows="2"
+                                <label class="block text-xs font-bold mb-1">Reason / description *</label>
+                                <textarea id="voucherNotes" rows="2" required
                                     class="w-full border-2 border-gray-300 rounded px-3 py-1.5 text-sm focus:border-purple-500 focus:outline-none"
-                                    placeholder="Add notes..."></textarea>
+                                    placeholder="Describe this entry (prefilled from type — you can edit)"></textarea>
                             </div>
 
                             <div class="flex gap-3 pt-3 border-t-2">
@@ -428,12 +456,49 @@
                 </div>
             `;
             document.getElementById('voucherFormContainer').innerHTML = formHtml;
+            attachMoneyFormatting('voucherAmount');
 
             // Initialize date picker
             flatpickr("#voucherDate", {
                 dateFormat: "Y-m-d",
                 defaultDate: "today"
             });
+
+            voucherNotesTouched = false;
+            const notesEl = document.getElementById('voucherNotes');
+            if (notesEl) {
+                notesEl.addEventListener('input', () => { voucherNotesTouched = true; });
+            }
+            document.getElementById('voucherParticular')?.addEventListener('change', () => {
+                voucherNotesTouched = false;
+                prefillVoucherNotes();
+            });
+        }
+
+        let voucherNotesTouched = false;
+
+        function prefillVoucherNotes() {
+            const notesEl = document.getElementById('voucherNotes');
+            if (!notesEl || voucherNotesTouched) return;
+
+            const voucherType = document.getElementById('voucherType')?.value || '';
+            const studentName = document.getElementById('selectedStudentName')?.textContent?.trim() || 'student';
+            const particularSelect = document.getElementById('voucherParticular');
+            const particularName = particularSelect?.selectedOptions?.[0]?.textContent?.trim() || 'fee';
+            const bookSelect = document.getElementById('voucherBook');
+            const bookName = bookSelect?.selectedOptions?.[0]?.textContent?.trim() || '';
+
+            let text = '';
+            if (voucherType === 'Sales') {
+                text = `Fee charged: ${particularName} (${studentName})`;
+            } else if (voucherType === 'Receipt') {
+                text = bookName
+                    ? `Cash receipt for ${particularName} (${studentName}) via ${bookName}`
+                    : `Cash receipt for ${particularName} (${studentName})`;
+            } else if (voucherType === 'Payment') {
+                text = `Payment for ${particularName} (${studentName})`;
+            }
+            if (text) notesEl.value = text;
         }
 
         function updateVoucherTypeFields() {
@@ -448,14 +513,15 @@
                     bookSelection.classList.remove('hidden');
                     document.getElementById('voucherBook').required = true;
 
-                    // Populate books dropdown
                     const bookSelect = document.getElementById('voucherBook');
                     bookSelect.innerHTML = '<option value="">-- Select Book --</option>' +
                         allBooks.map(b => `<option value="${b.id}">${b.name}</option>`).join('');
+                    bookSelect.onchange = () => prefillVoucherNotes();
                 } else {
                     bookSelection.classList.add('hidden');
                     document.getElementById('voucherBook').required = false;
                 }
+                prefillVoucherNotes();
             } else {
                 amountSection.classList.add('hidden');
             }
@@ -540,23 +606,24 @@
 
             // Load payment information for this student and particular
             await loadPaymentInfo();
+            prefillVoucherNotes();
         }
 
         async function loadPaymentInfo() {
             const studentId = document.getElementById('selectedStudentId').value;
             const particularId = document.getElementById('voucherParticular').value;
+            const voucherType = document.getElementById('voucherType').value;
 
             if (!studentId || !particularId) {
                 document.getElementById('paymentInfoDisplay').classList.add('hidden');
+                document.getElementById('applyAdvanceRow').classList.add('hidden');
                 return;
             }
 
             try {
-                // Get particular details to find sales amount
                 const particularResponse = await axios.get(`${API_BASE}/particulars/${particularId}`);
                 const particular = particularResponse.data;
 
-                // Find this student in the particular's students
                 const studentInParticular = particular.students?.find(s => s.id == studentId);
 
                 let supposedAmount = 0;
@@ -567,39 +634,134 @@
                     alreadyPaid = studentInParticular.pivot.credit || 0;
                 }
 
-                const outstandingBalance = supposedAmount - alreadyPaid;
+                const outstandingBalance = Math.max(0, supposedAmount - alreadyPaid);
 
-                // Display the information
+                const studentInList = allStudents.find(s => s.id == studentId);
+                const advanceAvailable = parseFloat(studentInList?.advance_balance ?? 0) || 0;
+
                 document.getElementById('supposedAmount').textContent = formatTSh(supposedAmount);
                 document.getElementById('alreadyPaidAmount').textContent = formatTSh(alreadyPaid);
                 document.getElementById('outstandingBalance').textContent = formatTSh(outstandingBalance);
+                document.getElementById('advanceAvailable').textContent = formatTSh(advanceAvailable);
                 document.getElementById('paymentInfoDisplay').classList.remove('hidden');
+
+                const applyRow = document.getElementById('applyAdvanceRow');
+                if (voucherType === 'Receipt' && advanceAvailable > 0 && outstandingBalance > 0) {
+                    applyRow.classList.remove('hidden');
+                } else {
+                    applyRow.classList.add('hidden');
+                }
             } catch (error) {
                 console.error('Error loading payment info:', error);
                 document.getElementById('paymentInfoDisplay').classList.add('hidden');
+                document.getElementById('applyAdvanceRow').classList.add('hidden');
+            }
+        }
+
+        async function applyAdvanceToParticular() {
+            const studentId = document.getElementById('selectedStudentId').value;
+            const particularId = document.getElementById('voucherParticular').value;
+            const date = document.getElementById('voucherDate').value;
+            const amount = parseMoneyInput(document.getElementById('applyAdvanceAmount').value);
+            const notes = document.getElementById('voucherNotes').value;
+
+            if (!studentId || !particularId) {
+                showDarasaToast({ type: 'warning', title: 'Apply advance', message: 'Select a student and a particular first.' });
+                return;
+            }
+            if (!date) {
+                showDarasaToast({ type: 'warning', title: 'Apply advance', message: 'Pick a date for this entry.' });
+                return;
+            }
+            if (!amount || amount <= 0) {
+                showDarasaToast({ type: 'warning', title: 'Apply advance', message: 'Enter the amount to use from advance.' });
+                return;
+            }
+
+            let advanceNotes = notes.trim();
+            if (!advanceNotes) {
+                const pName = document.getElementById('voucherParticular')?.selectedOptions?.[0]?.textContent?.trim() || 'fee';
+                const sName = document.getElementById('selectedStudentName')?.textContent?.trim() || 'student';
+                advanceNotes = `Fee payment for ${pName} (${sName}) — paid from advance balance`;
+                document.getElementById('voucherNotes').value = advanceNotes;
+            }
+
+            const btn = document.getElementById('applyAdvanceBtn');
+            if (btn) btn.disabled = true;
+            try {
+                const res = await axios.post(`${API_BASE}/vouchers/apply-advance`, {
+                    student_id: parseInt(studentId),
+                    particular_id: parseInt(particularId),
+                    amount,
+                    date,
+                    notes: advanceNotes,
+                });
+                showDarasaToast({ type: 'success', title: 'Apply advance', message: 'Advance applied. Student/particular balance updated (no extra book cash — advance was already received).' });
+
+                const studentInList = allStudents.find(s => s.id == studentId);
+                if (studentInList) studentInList.advance_balance = res.data?.student_advance_balance ?? 0;
+
+                document.getElementById('applyAdvanceAmount').value = '';
+                await loadPaymentInfo();
+                loadVouchers(currentVoucherPage);
+            } catch (error) {
+                showDarasaToast({ type: 'error', title: 'Apply advance', message: darasaAxiosMessage(error) });
+            } finally {
+                if (btn) btn.disabled = false;
             }
         }
 
         async function createVoucher(event) {
             event.preventDefault();
+            if (feeEntrySaveInFlight) {
+                return;
+            }
+
+            const submitBtn = event.submitter || (event.target && event.target.querySelector && event.target.querySelector('button[type="submit"]'));
 
             const date = document.getElementById('voucherDate').value;
             const studentId = document.getElementById('selectedStudentId').value;
             const particularId = document.getElementById('voucherParticular').value;
             const voucherType = document.getElementById('voucherType').value;
-            const amount = parseFloat(document.getElementById('voucherAmount').value);
+            const amount = parseMoneyInput(document.getElementById('voucherAmount').value);
             const notes = document.getElementById('voucherNotes').value;
             const bookId = document.getElementById('voucherBook').value || null;
+
+            if (!date || !studentId || !particularId || !voucherType) {
+                showDarasaToast({ type: 'warning', title: 'Fee entry', message: 'Please complete date, particular, voucher type, and select a student.' });
+                return;
+            }
+            if (!amount || amount <= 0) {
+                showDarasaToast({ type: 'warning', title: 'Fee entry', message: 'Please enter a valid amount greater than zero.' });
+                return;
+            }
+            if (!notes.trim()) {
+                showDarasaToast({ type: 'warning', title: 'Fee entry', message: 'Please enter a reason / description for this entry.' });
+                return;
+            }
+            if ((voucherType === 'Receipt' || voucherType === 'Payment') && !bookId) {
+                showDarasaToast({ type: 'warning', title: 'Fee entry', message: 'Please select the book/account for this receipt or payment.' });
+                return;
+            }
+
+            feeEntrySaveInFlight = true;
+            if (submitBtn) {
+                submitBtn.disabled = true;
+            }
 
             let debit = 0, credit = 0;
             if (voucherType === 'Sales') {
                 debit = amount;
+            } else if (voucherType === 'Receipt') {
+                // Stored as debit in DB (cash/book ledgers); fee-entry list shows this under Credit for clarity.
+                debit = amount;
             } else {
+                // Payment is money out -> CR (credit)
                 credit = amount;
             }
 
             try {
-                await axios.post(`${API_BASE}/vouchers`, {
+                const res = await axios.post(`${API_BASE}/vouchers`, {
                     date,
                     student_id: parseInt(studentId),
                     particular_id: parseInt(particularId),
@@ -609,23 +771,36 @@
                     credit,
                     notes
                 });
-                alert('✅ Voucher created successfully!');
+                let msg = 'Entry saved successfully.';
+                if (res.data && res.data.advance_voucher) {
+                    msg += '\n\nPart of this receipt was over the fee balance and was recorded separately as an advance on the student (you will see two receipt lines).';
+                }
+                showDarasaToast({ type: 'success', title: 'Fee entry', message: msg, duration: 8000 });
                 closeVoucherForm();
                 loadVouchers();
             } catch (error) {
-                alert('❌ Error: ' + (error.response?.data?.message || error.message));
+                showDarasaToast({ type: 'error', title: 'Fee entry', message: darasaAxiosMessage(error) });
+            } finally {
+                feeEntrySaveInFlight = false;
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                }
             }
         }
 
-        async function deleteVoucher(id) {
-            if (confirm('⚠️ Are you sure you want to delete this voucher?')) {
-                try {
-                    await axios.delete(`${API_BASE}/vouchers/${id}`);
-                    alert('✅ Voucher deleted successfully!');
-                    loadVouchers(currentVoucherPage);
-                } catch (error) {
-                    alert('❌ Error: ' + (error.response?.data?.message || error.message));
-                }
+        async function voidVoucher(id) {
+            const reason = prompt('Reason for voiding this voucher (kept on the audit record):');
+            if (reason === null) return;
+            if (!reason.trim()) {
+                showDarasaToast({ type: 'error', title: 'Fee entry', message: 'A reason is required to void.' });
+                return;
+            }
+            try {
+                await axios.post(`${API_BASE}/vouchers/${id}/void`, { reason: reason.trim() });
+                showDarasaToast({ type: 'success', title: 'Fee entry', message: 'Voucher voided. The record stays in the ledger.' });
+                loadVouchers(currentVoucherPage);
+            } catch (error) {
+                showDarasaToast({ type: 'error', title: 'Fee entry', message: darasaAxiosMessage(error) });
             }
         }
 
@@ -877,7 +1052,7 @@
 
                 document.getElementById('voucherFormContainer').innerHTML = html;
             } catch (error) {
-                alert('Error loading scholarships: ' + error.message);
+                showDarasaToast({ type: 'error', title: 'Scholarships', message: darasaAxiosMessage(error) });
                 console.error(error);
             }
         }
@@ -947,7 +1122,7 @@
                 document.getElementById('studentScholarshipDetails').classList.remove('hidden');
             } catch (error) {
                 console.error('Error loading student details:', error);
-                alert('Error loading student details: ' + (error.response?.data?.error || error.message));
+                showDarasaToast({ type: 'error', title: 'Student', message: darasaAxiosMessage(error) });
             }
         }
 
@@ -1088,10 +1263,10 @@
                     notes: notes
                 });
 
-                alert('✅ Scholarship assigned successfully!');
+                showDarasaToast({ type: 'success', title: 'Scholarship', message: 'Scholarship assigned successfully.' });
                 onStudentSelectedForScholarship(); // Refresh the view
             } catch (error) {
-                alert('❌ Error: ' + (error.response?.data?.error || error.message));
+                showDarasaToast({ type: 'error', title: 'Scholarship', message: darasaAxiosMessage(error) });
             }
         }
 
@@ -1100,14 +1275,14 @@
 
             if (amount === null) return;
 
-            const forgivenAmount = parseFloat(amount);
+            const forgivenAmount = parseMoneyInput(amount);
             if (isNaN(forgivenAmount) || forgivenAmount <= 0) {
-                alert('Please enter a valid amount');
+                showDarasaToast({ type: 'warning', title: 'Scholarship', message: 'Please enter a valid amount.' });
                 return;
             }
 
             if (forgivenAmount > originalAmount) {
-                alert('Scholarship amount cannot exceed the original fee amount');
+                showDarasaToast({ type: 'warning', title: 'Scholarship', message: 'Scholarship amount cannot exceed the original fee amount.' });
                 return;
             }
 
@@ -1125,58 +1300,56 @@
                 applied_date: new Date().toISOString().split('T')[0],
                 notes: notes
             }).then(() => {
-                alert('✅ Partial scholarship assigned successfully!');
+                showDarasaToast({ type: 'success', title: 'Scholarship', message: 'Partial scholarship assigned successfully.' });
                 onStudentSelectedForScholarship();
             }).catch(error => {
-                alert('❌ Error: ' + (error.response?.data?.error || error.message));
+                showDarasaToast({ type: 'error', title: 'Scholarship', message: darasaAxiosMessage(error) });
             });
         }
 
         async function removeScholarshipFromParticular(scholarshipId, particularName) {
-            if (!confirm(`⚠️ Remove scholarship from "${particularName}"? The original fee amount will be restored.`)) {
-                return;
-            }
+            const ok = await darasaConfirm(`Remove scholarship from "${particularName}"? The original fee amount will be restored.`, 'Remove scholarship?');
+            if (!ok) return;
 
             try {
                 await axios.post(`${API_BASE}/scholarships/${scholarshipId}/deactivate`);
-                alert('✅ Scholarship removed successfully!');
+                showDarasaToast({ type: 'success', title: 'Scholarship', message: 'Scholarship removed.' });
                 onStudentSelectedForScholarship();
             } catch (error) {
-                alert('❌ Error: ' + (error.response?.data?.error || error.message));
+                showDarasaToast({ type: 'error', title: 'Scholarship', message: darasaAxiosMessage(error) });
             }
         }
 
         async function loadFeesForYear() {
             const yearId = document.getElementById('addAnotherYearSelect').value;
             if (!yearId) {
-                alert('Please select an academic year');
+                showDarasaToast({ type: 'warning', title: 'Academic year', message: 'Please select an academic year.' });
                 return;
             }
 
             if (!selectedStudentForScholarship) {
-                alert('Please select a student first');
+                showDarasaToast({ type: 'warning', title: 'Student', message: 'Please select a student first.' });
                 return;
             }
 
             try {
                 // This would need a new API endpoint to assign fees for a year
-                alert('Feature: This would load/assign fees for the selected academic year. The student needs to have fees assigned for this year first.');
+                showDarasaToast({ type: 'info', title: 'Academic year', message: 'This would load or assign fees for the selected academic year. The student needs to have fees assigned for this year first.', duration: 8000 });
             } catch (error) {
-                alert('Error: ' + error.message);
+                showDarasaToast({ type: 'error', title: 'Academic year', message: darasaAxiosMessage(error) });
             }
         }
 
         async function deactivateScholarship(scholarshipId) {
-            if (!confirm('⚠️ Are you sure you want to remove this scholarship? The original fee amount will be restored.')) {
-                return;
-            }
+            const ok = await darasaConfirm('Remove this scholarship? The original fee amount will be restored.', 'Remove scholarship?');
+            if (!ok) return;
 
             try {
                 await axios.post(`${API_BASE}/scholarships/${scholarshipId}/deactivate`);
-                alert('✅ Scholarship removed successfully!');
+                showDarasaToast({ type: 'success', title: 'Scholarship', message: 'Scholarship removed.' });
                 showScholarshipsManager(); // Refresh the list
             } catch (error) {
-                alert('❌ Error: ' + (error.response?.data?.error || error.message));
+                showDarasaToast({ type: 'error', title: 'Scholarship', message: darasaAxiosMessage(error) });
             }
         }
 
@@ -1186,5 +1359,4 @@
             studentParticularsData = {};
         }
     </script>
-</body>
-</html>
+@endpush

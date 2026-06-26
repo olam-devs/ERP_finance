@@ -4,7 +4,7 @@ namespace App\Services;
 
 use App\Models\Central\ActivityLog;
 use App\Models\Central\School;
-use App\Models\Central\SuperAdmin;
+use Illuminate\Foundation\Auth\User as SuperAdmin; // accepts both Central\SuperAdmin and Platform\PlatformSuperAdmin
 use App\Models\Central\SchoolAccountant;
 use Illuminate\Support\Facades\Request;
 

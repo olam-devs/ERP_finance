@@ -81,6 +81,26 @@ return [
             'engine' => null,
         ],
 
+        // Platform Database (shared across Darasa Finance + Academics:
+        // super-admin identity, school registry, master student/class registry,
+        // reg-number sequences, cross-system access grants & handoff tokens)
+        'platform' => [
+            'driver' => 'mysql',
+            'url' => env('DB_URL'),
+            'host' => env('PLATFORM_DB_HOST', env('DB_HOST', '127.0.0.1')),
+            'port' => env('PLATFORM_DB_PORT', env('DB_PORT', '3306')),
+            'database' => env('PLATFORM_DB_DATABASE', 'darasa_platform'),
+            'username' => env('PLATFORM_DB_USERNAME', env('DB_USERNAME', 'root')),
+            'password' => env('PLATFORM_DB_PASSWORD', env('DB_PASSWORD', '')),
+            'unix_socket' => env('DB_SOCKET', ''),
+            'charset' => 'utf8mb4',
+            'collation' => 'utf8mb4_unicode_ci',
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'strict' => true,
+            'engine' => null,
+        ],
+
         // Tenant Database (School-specific, set dynamically or from env for single-school)
         'tenant' => [
             'driver' => 'mysql',

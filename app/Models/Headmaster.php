@@ -2,9 +2,11 @@
 
 namespace App\Models;
 
+use DateTimeInterface;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Carbon;
 
 class Headmaster extends Authenticatable
 {
@@ -34,6 +36,7 @@ class Headmaster extends Authenticatable
         'registration_number',
         'email',
         'phone',
+        'password',
         'is_active',
     ];
 
@@ -43,6 +46,7 @@ class Headmaster extends Authenticatable
      * @var array<int, string>
      */
     protected $hidden = [
+        'password',
         'remember_token',
     ];
 
@@ -55,6 +59,7 @@ class Headmaster extends Authenticatable
     {
         return [
             'is_active' => 'boolean',
+            'password'  => 'hashed',
         ];
     }
 
@@ -64,5 +69,10 @@ class Headmaster extends Authenticatable
     public function scopeActive($query)
     {
         return $query->where('is_active', true);
+    }
+
+    protected function serializeDate(DateTimeInterface $date): string
+    {
+        return Carbon::instance($date)->format('Y-m-d');
     }
 }

@@ -8,7 +8,7 @@
 <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
     <div class="flex justify-between items-center mb-6">
         <h3 class="font-bold text-gray-800 flex items-center gap-2 text-xl">
-            <i class="fas fa-envelope text-indigo-600"></i> 
+            <i class="fas fa-envelope text-blue-600"></i> 
             <span data-translate="sms-messages">SMS Messages</span>
         </h3>
         <div class="text-sm text-gray-500">
@@ -18,11 +18,11 @@
 
     <div class="space-y-4">
         @forelse($messages as $message)
-            <div class="border border-gray-200 rounded-xl p-5 hover:border-indigo-300 hover:shadow-md transition">
+            <div class="border border-gray-200 rounded-xl p-5 hover:border-blue-300 hover:shadow-md transition">
                 <div class="flex justify-between items-start mb-3">
                     <div class="flex items-center gap-3">
-                        <div class="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center">
-                            <i class="fas fa-sms text-indigo-600"></i>
+                        <div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+                            <i class="fas fa-sms text-blue-600"></i>
                         </div>
                         <div>
                             <p class="font-semibold text-gray-800" data-translate="school-message">School Message</p>
@@ -38,7 +38,7 @@
                     </span>
                 </div>
                 
-                <div class="bg-gray-50 rounded-lg p-4 border-l-4 border-indigo-500">
+                <div class="bg-gray-50 rounded-lg p-4 border-l-4 border-blue-500">
                     <p class="text-gray-700 leading-relaxed">{{ $message->message }}</p>
                 </div>
 

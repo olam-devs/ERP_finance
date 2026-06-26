@@ -1,75 +1,63 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>Send SMS - Darasa Finance</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
-</head>
-<body class="bg-gray-100">
-    <div class="min-h-screen">
-        <!-- Header with Breadcrumb -->
-        <nav class="bg-gradient-to-r from-purple-600 to-indigo-600 text-white p-4 shadow-lg">
-            <div class="container mx-auto">
-                <!-- Breadcrumb Navigation -->
-                <div class="mb-2 text-sm">
-                    <a href="{{ route('accountant.dashboard') }}" class="hover:text-purple-200 transition">🏠 Home</a>
-                    <span class="mx-2">›</span>
-                    <span class="text-purple-200">SMS Notification</span>
-                </div>
+﻿@extends('layouts.accountant')
 
-                <div class="flex justify-between items-center">
-                    <div class="flex items-center gap-4">
-                        <h1 class="text-2xl font-bold">📱 SMS Notification System</h1>
-                    </div>
-                    <div class="flex gap-3 items-center">
-                        <div id="balance-display" class="bg-purple-700 px-4 py-2 rounded-lg shadow flex gap-4 items-center">
-                            <div class="text-center border-r border-purple-500 pr-4">
-                                <div class="text-xs opacity-75">School</div>
-                                <div class="font-semibold text-sm" id="sms-school">-</div>
-                            </div>
-                            <div class="text-center">
-                                <div class="text-xs opacity-75">Assigned</div>
-                                <div class="font-bold" id="sms-assigned">-</div>
-                            </div>
-                            <div class="text-center">
-                                <div class="text-xs opacity-75">Used</div>
-                                <div class="font-bold" id="sms-used">-</div>
-                            </div>
-                            <div class="text-center border-l border-purple-500 pl-4">
-                                <div class="text-xs opacity-75">Remaining</div>
-                                <div class="font-bold text-lg" id="sms-remaining">-</div>
-                            </div>
+@section('title', 'SMS — Darasa Finance')
+@section('page_title', 'SMS')
+
+@section('content')
+<div class="w-full space-y-6">
+        <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <nav class="mb-3 text-sm text-slate-500">
+                <a href="{{ route('accountant.dashboard') }}" class="font-medium text-slate-700 hover:text-slate-900">Dashboard</a>
+                <span class="mx-1.5">/</span>
+                <span class="text-slate-600">SMS</span>
+            </nav>
+            <div class="flex flex-col gap-4 lg:flex-row lg:flex-wrap lg:items-center lg:justify-between">
+                <div>
+                    <h2 class="text-lg font-semibold text-slate-900">Send SMS</h2>
+                    <p class="text-sm text-slate-500">Credits and delivery</p>
+                </div>
+                <div id="balance-display" class="sms-credits-panel flex flex-wrap items-stretch gap-0 overflow-hidden rounded-lg border border-slate-200 bg-slate-50 text-sm text-slate-800">
+                    <div class="flex items-center gap-3 border-r border-slate-200 px-4 py-2">
+                        <div>
+                            <div class="text-xs text-slate-500">School</div>
+                            <div class="font-semibold" id="sms-school">-</div>
                         </div>
-                        <a href="{{ route('accountant.sms-logs') }}" class="bg-indigo-500 hover:bg-indigo-600 px-4 py-2 rounded transition">
-                            📋 SMS Logs
-                        </a>
-                        <a href="{{ route('accountant.phone-numbers') }}" class="bg-green-500 hover:bg-green-600 px-4 py-2 rounded transition">
-                            📞 Manage Phones
-                        </a>
                     </div>
+                    <div class="px-4 py-2 text-center">
+                        <div class="text-xs text-slate-500">Assigned</div>
+                        <div class="font-semibold tabular-nums" id="sms-assigned">-</div>
+                    </div>
+                    <div class="border-l border-slate-200 px-4 py-2 text-center">
+                        <div class="text-xs text-slate-500">Used</div>
+                        <div class="font-semibold tabular-nums" id="sms-used">-</div>
+                    </div>
+                    <div class="border-l border-slate-200 px-4 py-2 text-center">
+                        <div class="text-xs text-slate-500">Remaining</div>
+                        <div class="text-lg font-semibold tabular-nums text-slate-900" id="sms-remaining">-</div>
+                    </div>
+                </div>
+                <div class="flex flex-wrap gap-2">
+                    <a href="{{ route('accountant.sms-logs') }}" class="inline-flex items-center rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">SMS logs</a>
+                    <a href="{{ route('accountant.phone-numbers') }}" class="inline-flex items-center rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700">Phone numbers</a>
                 </div>
             </div>
-        </nav>
+        </div>
 
-        <div class="container mx-auto p-6">
             <!-- Success/Error Messages -->
             <div id="message-container"></div>
 
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <!-- Left Panel - Student Selection -->
                 <div class="lg:col-span-1">
-                    <div class="bg-white rounded-lg shadow-lg p-6">
-                        <h2 class="text-xl font-bold mb-4 text-purple-600">👥 Select Recipients</h2>
+                    <div class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+                        <h2 class="mb-4 text-lg font-semibold text-slate-900">Select recipients</h2>
 
                         <!-- Selection Method Tabs -->
-                        <div class="flex gap-2 mb-4">
-                            <button onclick="switchTab('class')" id="tab-class" class="flex-1 px-4 py-2 rounded bg-purple-500 text-white">
+                        <div class="mb-4 flex gap-2">
+                            <button type="button" onclick="switchTab('class')" id="tab-class" class="flex-1 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white">
                                 By Class
                             </button>
-                            <button onclick="switchTab('search')" id="tab-search" class="flex-1 px-4 py-2 rounded bg-gray-200 hover:bg-gray-300">
+                            <button type="button" onclick="switchTab('search')" id="tab-search" class="flex-1 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
                                 Search
                             </button>
                         </div>
@@ -78,14 +66,14 @@
                         <div id="class-tab" class="tab-content">
                             <div class="mb-4">
                                 <label class="block text-sm font-medium text-gray-700 mb-2">Select Class</label>
-                                <select id="class-select" class="w-full border-gray-300 rounded-lg shadow-sm focus:border-purple-500 focus:ring-purple-500 p-2 border">
+                                <select id="class-select" class="w-full border-gray-300 rounded-lg shadow-sm focus:border-slate-400 focus:ring-slate-400 p-2 border">
                                     <option value="">Choose a class...</option>
                                     @foreach($classes as $class)
                                         <option value="{{ $class->id }}">{{ $class->name }}</option>
                                     @endforeach
                                 </select>
                             </div>
-                            <button onclick="loadStudentsByClass()" class="w-full bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded transition">
+                            <button type="button" onclick="loadStudentsByClass()" class="w-full rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700">
                                 Load Students
                             </button>
                         </div>
@@ -95,13 +83,13 @@
                             <div class="mb-4 relative">
                                 <label class="block text-sm font-medium text-gray-700 mb-2">Search Student</label>
                                 <input type="text" id="search-input" placeholder="Name or Registration Number..."
-                                    class="w-full border-gray-300 rounded-lg shadow-sm focus:border-purple-500 focus:ring-purple-500 p-2 border"
+                                    class="w-full border-gray-300 rounded-lg shadow-sm focus:border-slate-400 focus:ring-slate-400 p-2 border"
                                     oninput="showSearchAutocomplete()"
                                     onfocus="showSearchAutocomplete()">
-                                <div id="search-autocomplete" class="hidden absolute z-50 w-full mt-1 bg-white border-2 border-purple-300 rounded-lg shadow-lg max-h-64 overflow-y-auto"></div>
+                                <div id="search-autocomplete" class="hidden absolute z-50 w-full mt-1 bg-white border-2 border-slate-300 rounded-lg shadow-lg max-h-64 overflow-y-auto"></div>
                             </div>
-                            <button onclick="searchStudents()" class="w-full bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded transition">
-                                🔍 Search
+                            <button type="button" onclick="searchStudents()" class="w-full rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700">
+                                Search
                             </button>
                         </div>
 
@@ -109,7 +97,7 @@
                         <div class="mt-6">
                             <div class="flex justify-between items-center mb-3">
                                 <h3 class="font-semibold text-gray-700">Students (<span id="student-count">0</span>)</h3>
-                                <button onclick="selectAllStudents()" class="text-sm text-purple-600 hover:text-purple-700">
+                                <button onclick="selectAllStudents()" class="text-sm text-slate-700 hover:text-slate-900">
                                     Select All
                                 </button>
                             </div>
@@ -119,8 +107,8 @@
                         </div>
 
                         <!-- Selected Count -->
-                        <div class="mt-4 p-3 bg-purple-50 rounded-lg border border-purple-200">
-                            <p class="text-sm font-medium text-purple-700">
+                        <div class="mt-4 p-3 bg-slate-50 rounded-lg border border-slate-200">
+                            <p class="text-sm font-medium text-slate-800">
                                 Selected: <span id="selected-count" class="font-bold">0</span> students
                             </p>
                         </div>
@@ -129,8 +117,8 @@
 
                 <!-- Right Panel - Message Composition -->
                 <div class="lg:col-span-2">
-                    <div class="bg-white rounded-lg shadow-lg p-6">
-                        <h2 class="text-xl font-bold mb-4 text-purple-600">✉️ Compose Message</h2>
+                    <div class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+                        <h2 class="mb-4 text-lg font-semibold text-slate-900">Compose message</h2>
 
                         <!-- Phone Number Selection -->
                         <div class="mb-4">
@@ -155,10 +143,10 @@
                         <div class="mb-4">
                             <label class="block text-sm font-medium text-gray-700 mb-2">Template Language</label>
                             <div class="flex gap-3">
-                                <button onclick="switchLanguage('en')" id="lang-en" class="px-4 py-2 rounded bg-purple-500 text-white transition">
+                                <button type="button" onclick="switchLanguage('en')" id="lang-en" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition">
                                     English
                                 </button>
-                                <button onclick="switchLanguage('sw')" id="lang-sw" class="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300 transition">
+                                <button type="button" onclick="switchLanguage('sw')" id="lang-sw" class="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50">
                                     Kiswahili
                                 </button>
                             </div>
@@ -167,7 +155,7 @@
                         <!-- Message Templates -->
                         <div class="mb-4">
                             <label class="block text-sm font-medium text-gray-700 mb-2">Quick Templates</label>
-                            <select id="template-select" onchange="useTemplate()" class="w-full border-gray-300 rounded-lg shadow-sm focus:border-purple-500 focus:ring-purple-500 p-2 border">
+                            <select id="template-select" onchange="useTemplate()" class="w-full border-gray-300 rounded-lg shadow-sm focus:border-slate-400 focus:ring-slate-400 p-2 border">
                                 <option value="">Choose a template...</option>
                                 <optgroup label="System Templates">
                                     <option value="fee_reminder">Fee Reminder (Short)</option>
@@ -191,20 +179,20 @@
                         <div class="mb-4">
                             <div class="flex justify-between items-center mb-2">
                                 <label class="block text-sm font-medium text-gray-700">Payment Reminder Message (for students with balance)</label>
-                                <button onclick="openSaveTemplateModal()" class="text-sm text-purple-600 hover:text-purple-700 font-medium">
-                                    💾 Save as Template
+                                <button type="button" onclick="openSaveTemplateModal()" class="text-sm font-medium text-slate-700 hover:text-slate-900">
+                                    Save as template
                                 </button>
                             </div>
-                            <textarea id="message-text" rows="6" maxlength="1000" class="w-full border-gray-300 rounded-lg shadow-sm focus:border-purple-500 focus:ring-purple-500 p-3 border" placeholder="Type your payment reminder message here..."></textarea>
+                            <textarea id="message-text" rows="6" maxlength="1000" class="w-full border-gray-300 rounded-lg shadow-sm focus:border-slate-400 focus:ring-slate-400 p-3 border" placeholder="Type your payment reminder message here..."></textarea>
                             <div class="flex justify-between items-center mt-2 text-sm">
                                 <div class="flex gap-4 text-gray-600">
                                     <span>
                                         <span id="char-count">0</span>/<span id="max-chars">160</span> chars
                                     </span>
-                                    <span class="font-semibold text-purple-700">
+                                    <span class="font-semibold text-slate-800">
                                         = <span id="sms-count">0</span> SMS
                                     </span>
-                                    <span id="unicode-indicator" class="hidden text-orange-600">
+                                    <span id="unicode-indicator" class="hidden text-amber-700">
                                         (Unicode detected - 70 chars/SMS)
                                     </span>
                                 </div>
@@ -214,10 +202,10 @@
                         <!-- Thank You Message Input -->
                         <div class="mb-4">
                             <div class="flex justify-between items-center mb-2">
-                                <label class="block text-sm font-medium text-green-700">✅ Thank You Message (for fully paid students) - Optional</label>
+                                <label class="block text-sm font-medium text-slate-700">Thank you message (fully paid students) — optional</label>
                                 <span class="text-xs text-gray-500">Leave empty to skip fully paid students</span>
                             </div>
-                            <textarea id="thank-you-text" rows="4" maxlength="1000" class="w-full border-green-300 rounded-lg shadow-sm focus:border-green-500 focus:ring-green-500 p-3 border bg-green-50" placeholder="Dear parent of {student_name}, Thank you for completing all fee payments! We appreciate your prompt payment..."></textarea>
+                            <textarea id="thank-you-text" rows="4" maxlength="1000" class="w-full rounded-lg border border-slate-200 bg-slate-50 p-3 shadow-sm focus:border-slate-400 focus:ring-slate-400" placeholder="Dear parent of {student_name}, Thank you for completing all fee payments! We appreciate your prompt payment..."></textarea>
                             <div class="flex justify-between items-center mt-2 text-sm">
                                 <span class="text-gray-600">
                                     <span id="thank-you-char-count">0</span>/1000 characters
@@ -227,21 +215,21 @@
                         </div>
 
                         <!-- Clickable Placeholders - Left Bottom -->
-                        <div class="mb-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
-                            <h3 class="font-semibold text-gray-700 mb-2 text-sm">Click to Insert Placeholder:</h3>
+                        <div class="mb-4 rounded-lg border border-slate-200 bg-slate-50 p-4">
+                            <h3 class="mb-2 text-sm font-semibold text-slate-700">Insert placeholder</h3>
 
                             <!-- Student Info -->
                             <div class="mb-3">
                                 <h4 class="text-xs font-semibold text-gray-600 mb-1">Student Info:</h4>
                                 <div class="grid grid-cols-3 gap-2">
-                                    <button onclick="insertPlaceholder('{student_name}')" class="bg-purple-100 hover:bg-purple-200 text-purple-700 px-3 py-2 rounded text-xs transition text-left">
-                                        📝 {student_name}
+                                    <button type="button" onclick="insertPlaceholder('{student_name}')" class="rounded bg-slate-100 px-3 py-2 text-left text-xs text-slate-800 transition hover:bg-slate-200">
+                                        {student_name}
                                     </button>
-                                    <button onclick="insertPlaceholder('{student_reg}')" class="bg-purple-100 hover:bg-purple-200 text-purple-700 px-3 py-2 rounded text-xs transition text-left">
-                                        🔢 {student_reg}
+                                    <button type="button" onclick="insertPlaceholder('{student_reg}')" class="rounded bg-slate-100 px-3 py-2 text-left text-xs text-slate-800 transition hover:bg-slate-200">
+                                        {student_reg}
                                     </button>
-                                    <button onclick="insertPlaceholder('{class}')" class="bg-purple-100 hover:bg-purple-200 text-purple-700 px-3 py-2 rounded text-xs transition text-left">
-                                        🏫 {class}
+                                    <button type="button" onclick="insertPlaceholder('{class}')" class="rounded bg-slate-100 px-3 py-2 text-left text-xs text-slate-800 transition hover:bg-slate-200">
+                                        {class}
                                     </button>
                                 </div>
                             </div>
@@ -250,14 +238,14 @@
                             <div class="mb-3">
                                 <h4 class="text-xs font-semibold text-gray-600 mb-1">Financial:</h4>
                                 <div class="grid grid-cols-3 gap-2">
-                                    <button onclick="insertPlaceholder('{total_sales}')" class="bg-green-100 hover:bg-green-200 text-green-700 px-3 py-2 rounded text-xs transition text-left">
-                                        💰 {total_sales}
+                                    <button type="button" onclick="insertPlaceholder('{total_sales}')" class="rounded bg-slate-100 px-3 py-2 text-left text-xs text-slate-800 transition hover:bg-slate-200">
+                                        {total_sales}
                                     </button>
-                                    <button onclick="insertPlaceholder('{total_paid}')" class="bg-green-100 hover:bg-green-200 text-green-700 px-3 py-2 rounded text-xs transition text-left">
-                                        ✅ {total_paid}
+                                    <button type="button" onclick="insertPlaceholder('{total_paid}')" class="rounded bg-slate-100 px-3 py-2 text-left text-xs text-slate-800 transition hover:bg-slate-200">
+                                        {total_paid}
                                     </button>
-                                    <button onclick="insertPlaceholder('{balance}')" class="bg-red-100 hover:bg-red-200 text-red-700 px-3 py-2 rounded text-xs transition text-left">
-                                        ⚠️ {balance}
+                                    <button type="button" onclick="insertPlaceholder('{balance}')" class="rounded bg-red-50 px-3 py-2 text-left text-xs text-red-800 transition hover:bg-red-100">
+                                        {balance}
                                     </button>
                                 </div>
                             </div>
@@ -266,23 +254,23 @@
                             <div class="mb-3">
                                 <h4 class="text-xs font-semibold text-gray-600 mb-1">Overdue & Deadline:</h4>
                                 <div class="grid grid-cols-2 gap-2">
-                                    <button onclick="insertPlaceholder('{total_overdue}')" class="bg-orange-100 hover:bg-orange-200 text-orange-700 px-3 py-2 rounded text-xs transition text-left">
-                                        🔔 {total_overdue}
+                                    <button type="button" onclick="insertPlaceholder('{total_overdue}')" class="rounded bg-slate-100 px-3 py-2 text-left text-xs text-slate-800 transition hover:bg-slate-200">
+                                        {total_overdue}
                                     </button>
-                                    <button onclick="insertPlaceholder('{overdue_count}')" class="bg-orange-100 hover:bg-orange-200 text-orange-700 px-3 py-2 rounded text-xs transition text-left">
-                                        📊 {overdue_count}
+                                    <button type="button" onclick="insertPlaceholder('{overdue_count}')" class="rounded bg-slate-100 px-3 py-2 text-left text-xs text-slate-800 transition hover:bg-slate-200">
+                                        {overdue_count}
                                     </button>
-                                    <button onclick="insertPlaceholder('{particular_name}')" class="bg-yellow-100 hover:bg-yellow-200 text-yellow-700 px-3 py-2 rounded text-xs transition text-left">
-                                        📚 {particular_name}
+                                    <button type="button" onclick="insertPlaceholder('{particular_name}')" class="rounded bg-slate-100 px-3 py-2 text-left text-xs text-slate-800 transition hover:bg-slate-200">
+                                        {particular_name}
                                     </button>
-                                    <button onclick="insertPlaceholder('{deadline}')" class="bg-yellow-100 hover:bg-yellow-200 text-yellow-700 px-3 py-2 rounded text-xs transition text-left">
-                                        📅 {deadline}
+                                    <button type="button" onclick="insertPlaceholder('{deadline}')" class="rounded bg-slate-100 px-3 py-2 text-left text-xs text-slate-800 transition hover:bg-slate-200">
+                                        {deadline}
                                     </button>
-                                    <button onclick="insertPlaceholder('{days_overdue}')" class="bg-red-100 hover:bg-red-200 text-red-700 px-3 py-2 rounded text-xs transition text-left">
-                                        ⏰ {days_overdue}
+                                    <button type="button" onclick="insertPlaceholder('{days_overdue}')" class="rounded bg-red-50 px-3 py-2 text-left text-xs text-red-800 transition hover:bg-red-100">
+                                        {days_overdue}
                                     </button>
-                                    <button onclick="insertPlaceholder('{overdue_amount}')" class="bg-red-100 hover:bg-red-200 text-red-700 px-3 py-2 rounded text-xs transition text-left">
-                                        💸 {overdue_amount}
+                                    <button type="button" onclick="insertPlaceholder('{overdue_amount}')" class="rounded bg-red-50 px-3 py-2 text-left text-xs text-red-800 transition hover:bg-red-100">
+                                        {overdue_amount}
                                     </button>
                                 </div>
                             </div>
@@ -291,32 +279,32 @@
                             <div>
                                 <h4 class="text-xs font-semibold text-gray-600 mb-1">Detailed Breakdowns:</h4>
                                 <div class="grid grid-cols-1 gap-2">
-                                    <button onclick="insertPlaceholder('{particulars_breakdown}')" class="bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-2 rounded text-xs transition text-left">
-                                        📋 {particulars_breakdown}
+                                    <button type="button" onclick="insertPlaceholder('{particulars_breakdown}')" class="rounded bg-slate-100 px-3 py-2 text-left text-xs text-slate-800 transition hover:bg-slate-200">
+                                        {particulars_breakdown}
                                     </button>
-                                    <button onclick="insertPlaceholder('{academic_year_breakdown}')" class="bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-2 rounded text-xs transition text-left">
-                                        📅 {academic_year_breakdown}
+                                    <button type="button" onclick="insertPlaceholder('{academic_year_breakdown}')" class="rounded bg-slate-100 px-3 py-2 text-left text-xs text-slate-800 transition hover:bg-slate-200">
+                                        {academic_year_breakdown}
                                     </button>
-                                    <button onclick="insertPlaceholder('{overdue_details}')" class="bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-2 rounded text-xs transition text-left">
-                                        📝 {overdue_details}
+                                    <button type="button" onclick="insertPlaceholder('{overdue_details}')" class="rounded bg-slate-100 px-3 py-2 text-left text-xs text-slate-800 transition hover:bg-slate-200">
+                                        {overdue_details}
                                     </button>
                                 </div>
                             </div>
                         </div>
 
                         <!-- Preview -->
-                        <div class="mb-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
-                            <h3 class="font-semibold text-gray-700 mb-2">📱 Message Preview</h3>
+                        <div class="mb-4 rounded-lg border border-slate-200 bg-slate-50 p-4">
+                            <h3 class="mb-2 font-semibold text-slate-700">Message preview</h3>
                             <p id="message-preview" class="text-sm text-gray-600 whitespace-pre-wrap">Your message will appear here...</p>
                         </div>
 
                         <!-- Send Button -->
                         <div class="flex gap-3">
-                            <button onclick="sendSMS()" id="send-btn" class="flex-1 bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 text-white px-6 py-3 rounded-lg font-semibold transition transform hover:scale-105 shadow-lg">
-                                📤 Send SMS
+                            <button onclick="sendSMS()" id="send-btn" class="flex-1 rounded-lg bg-blue-600 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700">
+                                Send SMS
                             </button>
-                            <button onclick="clearForm()" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-6 py-3 rounded-lg font-semibold transition">
-                                🔄 Clear
+                            <button onclick="clearForm()" class="rounded-lg border border-slate-200 bg-white px-6 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
+                                Clear
                             </button>
                         </div>
                     </div>
@@ -324,15 +312,16 @@
             </div>
         </div>
     </div>
+</div>
 
     <!-- Save Template Modal -->
     <div id="save-template-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <h3 class="text-xl font-bold mb-4 text-purple-600">💾 Save as Template</h3>
+        <div class="mx-4 w-full max-w-md rounded-xl border border-slate-200 bg-white p-6 shadow-lg">
+            <h3 class="mb-4 text-lg font-semibold text-slate-900">Save as template</h3>
 
             <div class="mb-4">
                 <label class="block text-sm font-medium text-gray-700 mb-2">Template Name</label>
-                <input type="text" id="template-name" class="w-full border-gray-300 rounded-lg shadow-sm focus:border-purple-500 focus:ring-purple-500 p-2 border" placeholder="e.g., Monthly Fee Reminder">
+                <input type="text" id="template-name" class="w-full border-gray-300 rounded-lg shadow-sm focus:border-slate-400 focus:ring-slate-400 p-2 border" placeholder="e.g., Monthly Fee Reminder">
             </div>
 
             <div class="mb-4">
@@ -342,11 +331,11 @@
 
             <div class="mb-4">
                 <label class="block text-sm font-medium text-gray-700 mb-2">Swahili Message (Optional)</label>
-                <textarea id="template-message-sw" rows="4" class="w-full border-gray-300 rounded-lg shadow-sm focus:border-purple-500 focus:ring-purple-500 p-2 border" placeholder="Translate your message to Swahili..."></textarea>
+                <textarea id="template-message-sw" rows="4" class="w-full border-gray-300 rounded-lg shadow-sm focus:border-slate-400 focus:ring-slate-400 p-2 border" placeholder="Translate your message to Swahili..."></textarea>
             </div>
 
             <div class="flex gap-3">
-                <button onclick="saveTemplate()" class="flex-1 bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded transition">
+                <button onclick="saveTemplate()" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded transition">
                     Save Template
                 </button>
                 <button onclick="closeSaveTemplateModal()" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded transition">
@@ -355,9 +344,11 @@
             </div>
         </div>
     </div>
+@endsection
 
+@push('scripts')
     <script>
-        let selectedStudents = [];
+let selectedStudents = [];
         let students = [];
         let currentLanguage = 'en';
         let allTemplates = @json($templates ?? []);
@@ -374,12 +365,22 @@
         // Switch language
         function switchLanguage(lang) {
             currentLanguage = lang;
-            document.getElementById('lang-en').classList.toggle('bg-purple-500', lang === 'en');
-            document.getElementById('lang-en').classList.toggle('text-white', lang === 'en');
-            document.getElementById('lang-en').classList.toggle('bg-gray-200', lang !== 'en');
-            document.getElementById('lang-sw').classList.toggle('bg-purple-500', lang === 'sw');
-            document.getElementById('lang-sw').classList.toggle('text-white', lang === 'sw');
-            document.getElementById('lang-sw').classList.toggle('bg-gray-200', lang !== 'sw');
+            const en = document.getElementById('lang-en');
+            const sw = document.getElementById('lang-sw');
+            const active = ['bg-blue-600', 'text-white'];
+            const inactive = ['border', 'border-slate-200', 'bg-white', 'text-slate-700', 'hover:bg-slate-50'];
+
+            if (lang === 'en') {
+                en.classList.add(...active);
+                en.classList.remove(...inactive);
+                sw.classList.remove(...active);
+                sw.classList.add(...inactive);
+            } else {
+                sw.classList.add(...active);
+                sw.classList.remove(...inactive);
+                en.classList.remove(...active);
+                en.classList.add(...inactive);
+            }
         }
 
         // Insert placeholder at cursor position
@@ -403,19 +404,24 @@
         function switchTab(tab) {
             document.getElementById('class-tab').classList.add('hidden');
             document.getElementById('search-tab').classList.add('hidden');
-            document.getElementById('tab-class').classList.remove('bg-purple-500', 'text-white');
-            document.getElementById('tab-class').classList.add('bg-gray-200');
-            document.getElementById('tab-search').classList.remove('bg-purple-500', 'text-white');
-            document.getElementById('tab-search').classList.add('bg-gray-200');
+            const tabClass = document.getElementById('tab-class');
+            const tabSearch = document.getElementById('tab-search');
+            const active = ['bg-blue-600', 'text-white'];
+            const inactive = ['border', 'border-slate-200', 'bg-white', 'text-slate-700', 'hover:bg-slate-50'];
+
+            tabClass.classList.remove(...active);
+            tabClass.classList.add(...inactive);
+            tabSearch.classList.remove(...active);
+            tabSearch.classList.add(...inactive);
 
             if (tab === 'class') {
                 document.getElementById('class-tab').classList.remove('hidden');
-                document.getElementById('tab-class').classList.add('bg-purple-500', 'text-white');
-                document.getElementById('tab-class').classList.remove('bg-gray-200');
+                tabClass.classList.add(...active);
+                tabClass.classList.remove(...inactive);
             } else {
                 document.getElementById('search-tab').classList.remove('hidden');
-                document.getElementById('tab-search').classList.add('bg-purple-500', 'text-white');
-                document.getElementById('tab-search').classList.remove('bg-gray-200');
+                tabSearch.classList.add(...active);
+                tabSearch.classList.remove(...inactive);
             }
         }
 
@@ -486,10 +492,10 @@
                     matchedStudents.slice(0, 10).forEach(student => {
                         html += `
                             <div onclick="selectStudentFromAutocomplete(${student.id})"
-                                 class="p-3 hover:bg-purple-100 cursor-pointer border-b border-gray-200 last:border-0">
+                                 class="cursor-pointer border-b border-gray-200 p-3 last:border-0 hover:bg-slate-100">
                                 <div class="font-semibold text-gray-800 text-sm">${student.name}</div>
                                 <div class="text-xs text-gray-600">${student.student_reg_no} | ${student.school_class?.name || 'N/A'}</div>
-                                <div class="text-xs text-gray-500">📞 ${student.parent_phone_1 || 'No phone'}${student.parent_phone_2 ? ' | ' + student.parent_phone_2 : ''}</div>
+                                <div class="text-xs text-gray-500">Tel: ${student.parent_phone_1 || 'No phone'}${student.parent_phone_2 ? ' | ' + student.parent_phone_2 : ''}</div>
                             </div>
                         `;
                     });
@@ -546,13 +552,13 @@
             }
 
             container.innerHTML = studentList.map(student => `
-                <label class="flex items-center p-3 bg-gray-50 rounded-lg hover:bg-purple-50 cursor-pointer transition border border-gray-200">
-                    <input type="checkbox" value="${student.id}" onchange="toggleStudent(${student.id})" class="mr-3 h-4 w-4 text-purple-600">
+                <label class="flex cursor-pointer items-center rounded-lg border border-slate-200 bg-slate-50 p-3 transition hover:bg-slate-100">
+                    <input type="checkbox" value="${student.id}" onchange="toggleStudent(${student.id})" class="mr-3 h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-400">
                     <div class="flex-1">
                         <div class="font-semibold text-gray-800">${student.name}</div>
                         <div class="text-xs text-gray-600">${student.student_reg_no} | ${student.school_class?.name || 'N/A'}</div>
                         <div class="text-xs text-gray-500">
-                            📞 ${student.parent_phone_1}${student.parent_phone_2 ? ' | ' + student.parent_phone_2 : ''}
+                            Tel: ${student.parent_phone_1}${student.parent_phone_2 ? ' | ' + student.parent_phone_2 : ''}
                         </div>
                     </div>
                 </label>
@@ -728,7 +734,7 @@
 
             const btn = document.getElementById('send-btn');
             btn.disabled = true;
-            btn.innerHTML = '⏳ Sending...';
+            btn.innerHTML = 'Sending...';
 
             try {
                 const payload = {
@@ -744,7 +750,7 @@
 
                 const response = await axios.post('/sms/send', payload);
 
-                let successMsg = `✅ ${response.data.message}`;
+                let successMsg = response.data.message || 'Sent.';
                 if (response.data.sms_credits) {
                     successMsg += ` (${response.data.sms_credits.used} SMS used, ${response.data.sms_credits.remaining} remaining)`;
                 }
@@ -754,14 +760,14 @@
             } catch (error) {
                 const errorMsg = error.response?.data?.message || error.message;
                 if (error.response?.status === 403) {
-                    showMessage('❌ ' + errorMsg + ' Please contact your administrator to add more SMS credits.', 'error');
+                    showMessage(errorMsg + ' Please contact your administrator to add more SMS credits.', 'error');
                 } else {
-                    showMessage('❌ ' + errorMsg, 'error');
+                    showMessage(errorMsg, 'error');
                 }
                 loadSmsBalance(); // Refresh credits display
             } finally {
                 btn.disabled = false;
-                btn.innerHTML = '📤 Send SMS';
+                btn.innerHTML = 'Send SMS';
             }
         }
 
@@ -783,22 +789,19 @@
 
                 // Update display color based on remaining credits
                 const balanceDisplay = document.getElementById('balance-display');
+                if (!balanceDisplay) return;
+                balanceDisplay.classList.remove('bg-slate-50', 'bg-red-50', 'bg-amber-50', 'bg-slate-200', 'border-red-200', 'border-amber-200', 'border-slate-200');
                 if (data.error || data.message) {
-                    // Show info message
-                    balanceDisplay.classList.remove('bg-purple-700', 'bg-red-600');
-                    balanceDisplay.classList.add('bg-gray-600');
+                    balanceDisplay.classList.add('bg-slate-200', 'border-slate-300');
                     if (data.message) {
                         document.getElementById('sms-remaining').textContent = '0';
                     }
                 } else if (data.remaining <= 0) {
-                    balanceDisplay.classList.remove('bg-purple-700', 'bg-gray-600');
-                    balanceDisplay.classList.add('bg-red-600');
+                    balanceDisplay.classList.add('bg-red-50', 'border-red-200');
                 } else if (data.remaining < 50) {
-                    balanceDisplay.classList.remove('bg-purple-700', 'bg-gray-600');
-                    balanceDisplay.classList.add('bg-orange-600');
+                    balanceDisplay.classList.add('bg-amber-50', 'border-amber-200');
                 } else {
-                    balanceDisplay.classList.remove('bg-red-600', 'bg-orange-600', 'bg-gray-600');
-                    balanceDisplay.classList.add('bg-purple-700');
+                    balanceDisplay.classList.add('bg-slate-50', 'border-slate-200');
                 }
             } catch (error) {
                 console.error('Error loading SMS credits:', error);
@@ -849,13 +852,13 @@
                     message_sw: messageSw
                 });
 
-                showMessage('✅ Template saved successfully!', 'success');
+                showMessage('Template saved successfully.', 'success');
                 closeSaveTemplateModal();
 
                 // Reload templates
                 location.reload();
             } catch (error) {
-                showMessage('❌ Failed to save template: ' + (error.response?.data?.message || error.message), 'error');
+                showMessage('Failed to save template: ' + (error.response?.data?.message || error.message), 'error');
             }
         }
 
@@ -875,10 +878,12 @@
         // Show message
         function showMessage(message, type) {
             const container = document.getElementById('message-container');
-            const bgColor = type === 'success' ? 'bg-green-100 border-green-500 text-green-700' : 'bg-red-100 border-red-500 text-red-700';
+            const boxClass = type === 'success'
+                ? 'mb-4 rounded-lg border border-slate-200 border-l-4 border-l-slate-700 bg-slate-50 p-4 text-slate-800 shadow-sm'
+                : 'mb-4 rounded-lg border border-red-200 border-l-4 border-l-red-600 bg-red-50 p-4 text-red-800 shadow-sm';
 
             container.innerHTML = `
-                <div class="${bgColor} border-l-4 p-4 mb-4 rounded" role="alert">
+                <div class="${boxClass}" role="alert">
                     <p class="font-bold">${type === 'success' ? 'Success' : 'Error'}</p>
                     <p>${message}</p>
                 </div>
@@ -889,5 +894,4 @@
             }, 5000);
         }
     </script>
-</body>
-</html>
+@endpush

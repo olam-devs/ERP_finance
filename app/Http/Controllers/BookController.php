@@ -9,7 +9,11 @@ class BookController extends Controller
 {
     public function index()
     {
-        $books = Book::orderBy('is_cash_book', 'desc')->orderBy('name')->get();
+        $books = Book::query()
+            ->orderBy('is_cash_book', 'desc')
+            ->orderBy('name')
+            ->get();
+
         return response()->json($books);
     }
 
@@ -23,12 +27,14 @@ class BookController extends Controller
         ]);
 
         $book = Book::create($validated);
+
         return response()->json($book, 201);
     }
 
     public function show($id)
     {
         $book = Book::findOrFail($id);
+
         return response()->json($book);
     }
 
@@ -44,6 +50,8 @@ class BookController extends Controller
         ]);
 
         $book->update($validated);
+        $book->refresh();
+
         return response()->json($book);
     }
 
@@ -56,6 +64,7 @@ class BookController extends Controller
         }
 
         $book->delete();
+
         return response()->json(['message' => 'Book deleted successfully']);
     }
 
@@ -72,4 +81,7 @@ class BookController extends Controller
 
         return response()->json($cashBook);
     }
+
+    // Legacy bank-fee-on-book-create helpers intentionally removed.
+    // Transaction fees are configured via Fees/Cuts after book creation.
 }

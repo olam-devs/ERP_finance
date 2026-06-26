@@ -9,21 +9,6 @@
             font-size: 10px;
             margin: 15px;
         }
-        .header {
-            text-align: center;
-            margin-bottom: 15px;
-            border-bottom: 2px solid #333;
-            padding-bottom: 8px;
-        }
-        .school-name {
-            font-size: 16px;
-            font-weight: bold;
-            margin-bottom: 5px;
-        }
-        .school-info {
-            font-size: 9px;
-            color: #666;
-        }
         .main-title {
             font-size: 13px;
             font-weight: bold;
@@ -107,12 +92,7 @@
     </style>
 </head>
 <body>
-    <div class="header">
-        <div class="school-name">{{ $school->school_name ?? 'Darasa Secondary School' }}</div>
-        <div class="school-info">
-            {{ $school->po_box ?? 'P.O. Box 12345' }} | {{ $school->region ?? 'Dar es Salaam' }} | Tel: {{ $school->phone ?? '+255 123 456 789' }}
-        </div>
-    </div>
+    @include('components.pdf-header', ['school' => $school ?? null])
 
     <div class="main-title">ALL STUDENTS INDIVIDUAL LEDGERS</div>
     <div style="text-align: center; font-size: 9px; margin-bottom: 15px;">
@@ -123,12 +103,7 @@
     <!-- Each student ledger on its own page -->
     @if($index > 0)
     <div style="page-break-before: always;"></div>
-    <div class="header">
-        <div class="school-name">{{ $school->school_name ?? 'Darasa Secondary School' }}</div>
-        <div class="school-info">
-            {{ $school->po_box ?? 'P.O. Box 12345' }} | {{ $school->region ?? 'Dar es Salaam' }} | Tel: {{ $school->phone ?? '+255 123 456 789' }}
-        </div>
-    </div>
+    @include('components.pdf-header', ['school' => $school ?? null])
     <div class="main-title">STUDENT LEDGER</div>
     @endif
 

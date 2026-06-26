@@ -1,56 +1,15 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>Particulars Management - Darasa Finance</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
-</head>
-<body class="bg-gray-100">
-    @include('components.sidebar')
+﻿@extends($portalLayout ?? 'layouts.accountant')
 
-    <!-- Header -->
-    <nav class="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-4 shadow-lg mb-6 sticky top-0 z-40">
-        <div class="container mx-auto flex justify-between items-center">
-            <div class="flex items-center gap-4">
-                <!-- Menu Button -->
-                <button onclick="toggleSidebar()" class="hover:bg-white hover:bg-opacity-20 p-2 rounded transition">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
-                    </svg>
-                </button>
-                <!-- Clickable Logo -->
-                <a href="{{ route('accountant.dashboard') }}" class="flex items-center gap-2 hover:opacity-80 transition">
-                    @if($settings->logo_path && file_exists(public_path('storage/' . $settings->logo_path)))
-                        <img src="{{ asset('storage/' . $settings->logo_path) }}" alt="School Logo" class="w-10 h-10 rounded-lg bg-white p-1 object-contain">
-                    @else
-                        <div class="bg-white bg-opacity-20 p-2 rounded-lg">
-                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
-                            </svg>
-                        </div>
-                    @endif
-                    <h1 class="text-2xl font-bold">📋 Particulars Management</h1>
-                </a>
-            </div>
-            <div class="flex gap-3 items-center">
-                <form method="POST" action="{{ route('logout') }}">
-                    @csrf
-                    <button type="submit" class="bg-red-500 hover:bg-red-600 px-4 py-2 rounded transition">Logout</button>
-                </form>
-            </div>
-        </div>
-    </nav>
+@section('title', 'Particulars — Darasa Finance')
+@section('page_title', 'Particulars')
 
-    <!-- Module Content -->
-    <div class="container mx-auto p-6">
+@section('content')
+    <div class="mx-auto max-w-7xl px-0 sm:px-1">
         <div>
-            <div class="flex justify-between items-center mb-6">
-                <h2 class="text-3xl font-bold text-green-600">📋 Particulars Management</h2>
-                <button onclick="showCreateParticularForm()" class="bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-lg shadow transition">
-                    ➕ Create New Particular
+            <div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <h2 class="text-2xl font-bold text-blue-700 md:text-3xl">Particulars management</h2>
+                <button type="button" onclick="showCreateParticularForm()" class="inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-blue-500 to-sky-600 px-6 py-3 text-sm font-semibold text-white shadow-md shadow-blue-500/25 transition hover:from-blue-600 hover:to-sky-700">
+                    Create new particular
                 </button>
             </div>
             <div id="particularsList" class="mt-4"></div>
@@ -59,8 +18,11 @@
     </div>
 
     <!-- Module Scripts -->
+@endsection
+
+@push('scripts')
     <script>
-        const API_BASE = '/api';
+const API_BASE = '/api';
         let allBooks = [];
         let allParticulars = [];
         let allStudents = [];
@@ -72,6 +34,31 @@
         axios.defaults.headers.common['X-CSRF-TOKEN'] = document.querySelector('meta[name="csrf-token"]').content;
         axios.defaults.headers.common['Accept'] = 'application/json';
         axios.defaults.withCredentials = true;
+
+        // Money input formatting (commas) while keeping numeric payloads
+        function parseMoneyInput(value) {
+            if (value === null || value === undefined) return 0;
+            const cleaned = String(value).replace(/,/g, '').trim();
+            const n = parseFloat(cleaned);
+            return Number.isFinite(n) ? n : 0;
+        }
+
+        function formatMoneyForInput(value) {
+            const n = parseMoneyInput(value);
+            return n.toLocaleString('en-TZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
+        function attachMoneyFormattingToEl(el) {
+            if (!el) return;
+            el.setAttribute('inputmode', 'decimal');
+            el.addEventListener('focus', () => { el.value = String(el.value || '').replace(/,/g, ''); });
+            el.addEventListener('blur', () => { if (el.value !== '') el.value = formatMoneyForInput(el.value); });
+        }
+
+        function applyMoneyFormattingInContainer(container) {
+            const root = container || document;
+            root.querySelectorAll('input.money-input').forEach(attachMoneyFormattingToEl);
+        }
 
         // Load initial data on page load
         document.addEventListener('DOMContentLoaded', async function() {
@@ -85,7 +72,7 @@
                     axios.get(`${API_BASE}/books`),
                     axios.get(`${API_BASE}/students`),
                     axios.get(`${API_BASE}/classes`),
-                    axios.get(`${API_BASE}/academic-years/active`)
+                    axios.get(`${API_BASE}/academic-years`)
                 ]);
 
                 allBooks = booksResponse.data;
@@ -300,7 +287,7 @@
             // Reload academic years if not loaded
             if (allAcademicYears.length === 0) {
                 try {
-                    const academicYearsResponse = await axios.get(`${API_BASE}/academic-years/active`);
+                    const academicYearsResponse = await axios.get(`${API_BASE}/academic-years`);
                     allAcademicYears = academicYearsResponse.data;
                     const currentYear = allAcademicYears.find(y => y.is_current);
                     if (currentYear) {
@@ -340,6 +327,15 @@
                             <p class="text-sm text-yellow-600 text-center mt-2">All fee assignments will be linked to this academic year</p>
                         </div>
 
+                        <!-- Advance Payment Option -->
+                        <div class="mb-6 p-5 bg-emerald-50 rounded-lg border-2 border-emerald-300">
+                            <label class="flex items-center justify-center gap-3 text-emerald-800 font-bold">
+                                <input type="checkbox" id="useAdvanceToggle" class="w-5 h-5 rounded border-gray-300">
+                                Use students' advance payments to auto-pay new assignments (if available)
+                            </label>
+                            <p class="text-xs text-emerald-700 text-center mt-2">If a student has advance balance, it will be applied up to the assigned amount and recorded in the ledger.</p>
+                        </div>
+
                         <div class="mb-6 p-6 bg-blue-50 rounded-lg border-2 border-blue-300">
                             <label class="block text-lg font-bold mb-4 text-center">📚 Step 2: Select Class to View Students:</label>
                             <div class="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
@@ -365,6 +361,40 @@
             selectedAcademicYearId = parseInt(yearId);
             // Clear the students list when academic year changes
             document.getElementById('studentsListContainer').innerHTML = '<p class="text-center text-gray-500 p-4">Select a class to view students for the selected academic year.</p>';
+        }
+
+        function toggleSelectAllVisibleStudents(checked) {
+            document.querySelectorAll('.student-select-checkbox').forEach(cb => {
+                cb.checked = checked;
+            });
+        }
+
+        function applyBulkValueToSelected(selector, value) {
+            document.querySelectorAll('.student-select-checkbox:checked').forEach(cb => {
+                const studentId = cb.getAttribute('data-student-id');
+                const input = document.querySelector(`${selector}[data-student-id="${studentId}"]`);
+                if (input) input.value = value;
+            });
+        }
+
+        function applyBulkAmount() {
+            const bulkAmount = document.getElementById('bulkAmountInput')?.value;
+            const amount = parseMoneyInput(bulkAmount);
+            if (!amount || amount <= 0) {
+                alert('⚠️ Enter a valid bulk amount');
+                return;
+            }
+            applyBulkValueToSelected('.student-amount', amount);
+        }
+
+        /** Bulk deadline when assigning by class + academic year (uses #bulkDeadlineInput, .student-deadline) */
+        function applyBulkDeadlineForClassStudents() {
+            const bulkDeadline = document.getElementById('bulkDeadlineInput')?.value;
+            if (!bulkDeadline) {
+                alert('⚠️ Select a bulk deadline date');
+                return;
+            }
+            applyBulkValueToSelected('.student-deadline', bulkDeadline);
         }
 
         async function loadStudentsForClass(particularId, classId, className) {
@@ -398,7 +428,27 @@
 
                 let html = `
                     <div class="border-2 border-gray-300 rounded-lg p-4 bg-gray-50">
-                        <h4 class="font-bold text-lg mb-4">Students in ${className}</h4>
+                        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
+                            <h4 class="font-bold text-lg">Students in ${className}</h4>
+                            <div class="flex items-center gap-3">
+                                <label class="flex items-center gap-2 cursor-pointer">
+                                    <input type="checkbox" class="w-5 h-5 rounded border-gray-300" onchange="toggleSelectAllVisibleStudents(this.checked)">
+                                    <span class="text-sm font-bold">Select all</span>
+                                </label>
+                                <div class="hidden md:block h-6 w-px bg-gray-300"></div>
+                                <div class="flex items-center gap-2">
+                                    <input id="bulkAmountInput" type="text" class="money-input w-32 border-2 border-gray-300 rounded px-2 py-1 text-sm" placeholder="Bulk amount">
+                                    <button onclick="applyBulkAmount()" class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm font-bold">Apply</button>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <input id="bulkDeadlineInput" type="date" class="w-40 border-2 border-gray-300 rounded px-2 py-1 text-sm">
+                                    <button onclick="applyBulkDeadlineForClassStudents()" class="bg-orange-500 hover:bg-orange-600 text-white px-3 py-1 rounded text-sm font-bold">Apply</button>
+                                </div>
+                                <div class="hidden md:block h-6 w-px bg-gray-300"></div>
+                                <button onclick="bulkAssignSelected(${particularId})" class="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm font-bold">Bulk assign</button>
+                                <button onclick="bulkUpdateSelected(${particularId})" class="bg-yellow-600 hover:bg-yellow-700 text-white px-3 py-1 rounded text-sm font-bold">Bulk update</button>
+                            </div>
+                        </div>
                         <div class="space-y-2 max-h-96 overflow-y-auto">
                 `;
 
@@ -408,14 +458,17 @@
 
                     html += `
                         <div class="flex items-center gap-2 p-3 ${bgClass} rounded border-2 hover:border-blue-500">
+                            <input type="checkbox"
+                                class="student-select-checkbox w-5 h-5 rounded border-gray-300"
+                                data-student-id="${student.student_id}">
                             <div class="flex-1">
                                 <p class="font-bold">${checkmark}${student.student_name}</p>
                                 <p class="text-xs text-gray-500">${student.student_reg_no}</p>
                             </div>
                             <div class="flex gap-2 items-center">
                                 <span class="text-xs font-bold">Amount (TSH):</span>
-                                <input type="number" step="0.01" value="${student.sales || ''}"
-                                    class="student-amount w-32 border-2 border-gray-300 rounded px-2 py-1 text-sm"
+                                <input type="text" value="${student.sales || ''}"
+                                    class="money-input student-amount w-32 border-2 border-gray-300 rounded px-2 py-1 text-sm"
                                     data-student-id="${student.student_id}"
                                     data-original="${student.sales || 0}"
                                     placeholder="0.00">
@@ -443,11 +496,111 @@
 
                 html += '</div></div>';
                 document.getElementById('studentsListContainer').innerHTML = html;
+                applyMoneyFormattingInContainer(document.getElementById('studentsListContainer'));
+                applyMoneyFormattingInContainer(document.getElementById('assignActionsContainer'));
 
             } catch (error) {
                 console.error('Error loading students:', error);
                 document.getElementById('studentsListContainer').innerHTML =
                     '<p class="text-center text-red-500 p-4">❌ Error loading students</p>';
+            }
+        }
+
+        function getSelectedRowsForBulk() {
+            const selected = [];
+            document.querySelectorAll('.student-select-checkbox:checked').forEach(cb => {
+                const studentId = parseInt(cb.getAttribute('data-student-id'));
+                const amountInput = document.querySelector(`.student-amount[data-student-id="${studentId}"]`);
+                const deadlineInput = document.querySelector(`.student-deadline[data-student-id="${studentId}"]`);
+                const amount = parseMoneyInput(amountInput?.value || '0');
+                const original = parseMoneyInput(amountInput?.getAttribute('data-original') || '0');
+
+                selected.push({
+                    student_id: studentId,
+                    sales: amount,
+                    deadline: deadlineInput?.value || null,
+                    original_sales: original,
+                });
+            });
+            return selected;
+        }
+
+        async function bulkAssignSelected(particularId) {
+            if (!selectedAcademicYearId) {
+                alert('⚠️ Please select an Academic Year first');
+                return;
+            }
+
+            const selected = getSelectedRowsForBulk();
+            if (selected.length === 0) {
+                alert('⚠️ Select at least one student');
+                return;
+            }
+
+            const assignments = selected
+                .filter(r => r.sales && r.sales > 0)
+                .map(r => ({
+                    student_id: r.student_id,
+                    sales: r.sales,
+                    deadline: r.deadline,
+                }));
+
+            if (assignments.length === 0) {
+                alert('⚠️ Enter amount(s) for selected students');
+                return;
+            }
+
+            try {
+                const useAdvance = document.getElementById('useAdvanceToggle')?.checked || false;
+                await axios.post(`${API_BASE}/particulars/${particularId}/bulk-opening-balance`, {
+                    assignments,
+                    academic_year_id: selectedAcademicYearId,
+                    use_advance: useAdvance,
+                });
+                alert(`✅ Bulk assign complete for ${assignments.length} student(s)`);
+                showAssignStudentsForm(particularId, currentParticularForExisting.name);
+            } catch (error) {
+                console.error('Error bulk assigning:', error);
+                alert('❌ Error: ' + (error.response?.data?.message || error.message));
+            }
+        }
+
+        async function bulkUpdateSelected(particularId) {
+            if (!selectedAcademicYearId) {
+                alert('⚠️ Please select an Academic Year first');
+                return;
+            }
+
+            const selected = getSelectedRowsForBulk();
+            if (selected.length === 0) {
+                alert('⚠️ Select at least one student');
+                return;
+            }
+
+            const updates = selected
+                .map(r => {
+                    const sales = (r.sales && r.sales > 0)
+                        ? r.sales
+                        : parseMoneyInput(String(r.original_sales ?? 0));
+                    return { student_id: r.student_id, sales, deadline: r.deadline };
+                })
+                .filter(r => r.sales > 0);
+
+            if (updates.length === 0) {
+                alert('⚠️ Selected students need a fee amount (from the row or saved assignment). Enter amounts or choose students who are already assigned.');
+                return;
+            }
+
+            try {
+                await axios.put(`${API_BASE}/particulars/${particularId}/bulk-update-assignments`, {
+                    updates,
+                    academic_year_id: selectedAcademicYearId,
+                });
+                alert(`✅ Bulk update complete for ${updates.length} student(s)`);
+                showAssignStudentsForm(particularId, currentParticularForExisting.name);
+            } catch (error) {
+                console.error('Error bulk updating:', error);
+                alert('❌ Error: ' + (error.response?.data?.message || error.message));
             }
         }
 
@@ -461,7 +614,7 @@
             const amountInput = document.querySelector(`.student-amount[data-student-id="${studentId}"]`);
             const deadlineInput = document.querySelector(`.student-deadline[data-student-id="${studentId}"]`);
 
-            const amount = parseFloat(amountInput.value);
+            const amount = parseMoneyInput(amountInput.value);
             const deadline = deadlineInput.value;
 
             if (!amount || amount <= 0) {
@@ -491,8 +644,8 @@
             const amountInput = document.querySelector(`.student-amount[data-student-id="${studentId}"]`);
             const deadlineInput = document.querySelector(`.student-deadline[data-student-id="${studentId}"]`);
 
-            const newAmount = parseFloat(amountInput.value);
-            const originalAmount = parseFloat(amountInput.getAttribute('data-original'));
+            const newAmount = parseMoneyInput(amountInput.value);
+            const originalAmount = parseMoneyInput(amountInput.getAttribute('data-original'));
             const deadline = deadlineInput.value;
 
             if (!newAmount || newAmount <= 0) {
@@ -537,12 +690,16 @@
                         <div class="space-y-4">
                             <div>
                                 <label class="block font-bold mb-2">Amount (TSH):</label>
-                                <input type="number" id="newAssignAmount" step="0.01" class="w-full border-2 border-gray-300 rounded px-3 py-2" placeholder="0.00" required>
+                                <input type="text" id="newAssignAmount" class="money-input w-full border-2 border-gray-300 rounded px-3 py-2" placeholder="0.00" required>
                             </div>
                             <div>
                                 <label class="block font-bold mb-2">Deadline (Optional):</label>
                                 <input type="date" id="newAssignDeadline" class="w-full border-2 border-gray-300 rounded px-3 py-2">
                             </div>
+                            <label class="flex items-center gap-2 text-emerald-800 font-semibold text-sm">
+                                <input type="checkbox" id="newAssignUseAdvance" class="w-4 h-4 rounded border-gray-300">
+                                Use student advance (if available) to auto-pay this assignment
+                            </label>
                             <div class="flex gap-3 pt-4 border-t-2">
                                 <button onclick="closeNewAssignmentForm()" class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 px-4 py-2 rounded-lg font-bold">Cancel</button>
                                 <button onclick="saveNewAssignment(${particularId}, ${studentId})" class="flex-1 bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg font-bold">✅ Assign</button>
@@ -552,6 +709,7 @@
                 </div>
             `;
             document.body.insertAdjacentHTML('beforeend', formHtml);
+            applyMoneyFormattingInContainer(document.body);
         }
 
         function closeNewAssignmentForm() {
@@ -576,9 +734,10 @@
             try {
                 await axios.post(`${API_BASE}/particulars/${particularId}/assignments`, {
                     student_id: studentId,
-                    sales: parseFloat(amount),
+                    sales: parseMoneyInput(amount),
                     deadline: deadline || null,
-                    academic_year_id: selectedAcademicYearId
+                    academic_year_id: selectedAcademicYearId,
+                    use_advance: document.getElementById('newAssignUseAdvance')?.checked || false,
                 });
 
                 alert('✅ Student assigned successfully!');
@@ -599,7 +758,7 @@
                             <div>
                                 <label class="block font-bold mb-2">Current Amount: TSH ${currentAmount.toLocaleString()}</label>
                                 <label class="block font-bold mb-2">New Amount (TSH):</label>
-                                <input type="number" id="editAssignAmount" value="${currentAmount}" step="0.01" class="w-full border-2 border-gray-300 rounded px-3 py-2" required>
+                                <input type="text" id="editAssignAmount" value="${currentAmount}" class="money-input w-full border-2 border-gray-300 rounded px-3 py-2" required>
                                 <p class="text-xs text-gray-600 mt-1">Note: If amount changes, a ledger entry will be created automatically</p>
                             </div>
                             <div>
@@ -615,6 +774,7 @@
                 </div>
             `;
             document.body.insertAdjacentHTML('beforeend', formHtml);
+            applyMoneyFormattingInContainer(document.body);
         }
 
         function closeEditAssignmentForm() {
@@ -632,7 +792,7 @@
 
             try {
                 await axios.put(`${API_BASE}/particulars/${particularId}/assignments/${studentId}`, {
-                    sales: parseFloat(amount),
+                    sales: parseMoneyInput(amount),
                     deadline: deadline || null
                 });
 
@@ -726,8 +886,8 @@
                         </div>
                         <div class="flex gap-2 items-center">
                             <span class="text-xs font-bold">Sales:</span>
-                            <input type="number" step="0.01" value="${salesAmount}"
-                                class="sales-amount w-28 border-2 border-gray-300 rounded px-2 py-1 text-sm"
+                            <input type="text" value="${salesAmount}"
+                                class="money-input sales-amount w-28 border-2 border-gray-300 rounded px-2 py-1 text-sm"
                                 data-student-id="${student.id}" placeholder="TSh">
                         </div>
                         <div class="flex gap-2 items-center">
@@ -753,8 +913,8 @@
                     <div class="grid grid-cols-2 gap-4">
                         <div class="flex items-center gap-2">
                             <label class="font-bold text-sm">Bulk Sales Amount:</label>
-                            <input type="number" step="0.01" id="bulkSalesAmount"
-                                class="border-2 border-gray-300 rounded px-3 py-2 w-32"
+                            <input type="text" id="bulkSalesAmount"
+                                class="money-input border-2 border-gray-300 rounded px-3 py-2 w-32"
                                 placeholder="TSh 0.00">
                             <button onclick="applyBulkSales()"
                                 class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-2 rounded transition text-sm">
@@ -765,7 +925,7 @@
                             <label class="font-bold text-sm">Bulk Deadline:</label>
                             <input type="date" id="bulkDeadlineDate"
                                 class="border-2 border-gray-300 rounded px-3 py-2 w-36">
-                            <button onclick="applyBulkDeadline()"
+                            <button onclick="applyBulkDeadlineForCheckboxForm()"
                                 class="bg-orange-500 hover:bg-orange-600 text-white px-3 py-2 rounded transition text-sm">
                                 Apply
                             </button>
@@ -810,8 +970,9 @@
             alert('✅ Sales amount applied to selected students');
         }
 
-        function applyBulkDeadline() {
-            const bulkDeadline = document.getElementById('bulkDeadlineDate').value;
+        /** Bulk deadline on the older checkbox list form (uses #bulkDeadlineDate, .deadline-date) */
+        function applyBulkDeadlineForCheckboxForm() {
+            const bulkDeadline = document.getElementById('bulkDeadlineDate')?.value;
             if (!bulkDeadline) {
                 alert('⚠️ Please select a deadline date');
                 return;
@@ -836,7 +997,7 @@
 
                 selectedStudents.push({
                     student_id: parseInt(studentId),
-                    sales: parseFloat(salesAmount),
+                    sales: parseMoneyInput(salesAmount),
                     debit: 0,
                     credit: 0,
                     deadline: deadline
@@ -1011,7 +1172,7 @@
                         <form onsubmit="updateAssignment(event, ${particularId}, ${studentId})" class="space-y-4">
                             <div>
                                 <label class="block font-bold mb-2">Amount (TSh) <span class="text-red-500">*</span></label>
-                                <input type="number" step="0.01" id="edit_sales" value="${currentSales}" required
+                                <input type="text" id="edit_sales" value="${currentSales}" required
                                     class="w-full border-2 border-gray-300 rounded-lg px-4 py-2"
                                     placeholder="TSh 0.00">
                             </div>
@@ -1037,6 +1198,7 @@
             const modalDiv = document.createElement('div');
             modalDiv.innerHTML = editModalHtml;
             document.body.appendChild(modalDiv);
+            applyMoneyFormattingInContainer(modalDiv);
         }
 
         function closeEditAssignmentModal() {
@@ -1049,7 +1211,7 @@
         async function updateAssignment(event, particularId, studentId) {
             event.preventDefault();
 
-            const sales = parseFloat(document.getElementById('edit_sales').value);
+            const sales = parseMoneyInput(document.getElementById('edit_sales').value);
             const deadline = document.getElementById('edit_deadline').value || null;
 
             if (!sales || sales <= 0) {
@@ -1099,5 +1261,4 @@
             loadParticulars();
         }
     </script>
-</body>
-</html>
+@endpush

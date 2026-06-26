@@ -1,32 +1,17 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>Expense Management - Darasa Finance</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+﻿@extends('layouts.accountant')
+
+@section('title', 'Expenses — Darasa Finance')
+@section('page_title', 'Expenses')
+
+
+@push('head')
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-</head>
-<body class="bg-gray-50">
-    <!-- Navigation -->
-    <nav class="bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg">
-        <div class="container mx-auto px-4 py-4">
-            <div class="flex justify-between items-center">
-                <div>
-                    <h1 class="text-2xl font-bold">Expense Management</h1>
-                    <p class="text-sm text-blue-100">Create and process expense transactions</p>
-                </div>
-                <a href="{{ route('accountant.dashboard') }}" class="bg-white text-blue-600 px-4 py-2 rounded-lg hover:bg-blue-50 transition font-semibold">
-                    Back to Dashboard
-                </a>
-            </div>
-        </div>
-    </nav>
 
-    <div class="container mx-auto px-4 py-8">
+@endpush
+
+@section('content')
+<div class="w-full px-4 py-8">
         <!-- Summary Cards with Calendar Filter -->
         <div class="mb-6">
             <div class="bg-white rounded-lg shadow-lg p-6">
@@ -55,7 +40,7 @@
                     </div>
 
                     <!-- Processed Expenses -->
-                    <div class="bg-gradient-to-br from-green-500 to-teal-500 text-white p-6 rounded-xl shadow-lg">
+                    <div class="bg-gradient-to-br from-green-500 to-blue-500 text-white p-6 rounded-xl shadow-lg">
                         <h3 class="text-sm font-semibold opacity-90">Processed Expenses</h3>
                         <p class="text-3xl font-bold mt-2" id="processed-count">0</p>
                         <p class="text-sm opacity-90 mt-1">TSh <span id="processed-amount">0</span></p>
@@ -89,10 +74,11 @@
                         <option value="">-- Select Book (Optional) --</option>
                     </select>
                     <p class="text-sm text-gray-600 mt-1">Available Balance: <span id="book-balance" class="font-bold text-green-600">TSH 0</span></p>
+                    <p class="text-sm text-gray-600 mt-1" id="bank-fee-estimate-wrap" style="display:none;">Est. bank fee (if processed now): <span id="est-bank-fee" class="font-bold text-orange-700">TSH 0</span></p>
                 </div>
                 <div>
                     <label class="block text-sm font-semibold text-gray-700 mb-2">Amount *</label>
-                    <input type="number" id="amount" step="0.01" min="0.01" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    <input type="text" id="amount" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="0.00">
                 </div>
                 <div>
                     <label class="block text-sm font-semibold text-gray-700 mb-2">Status *</label>
@@ -154,24 +140,83 @@
                             <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Date</th>
                             <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Book</th>
                             <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Amount</th>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Bank fee</th>
                             <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Status</th>
                             <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Actions</th>
                         </tr>
                     </thead>
                     <tbody id="expenses-table">
                         <tr>
-                            <td colspan="7" class="px-4 py-8 text-center text-gray-500">Loading expenses...</td>
+                            <td colspan="8" class="px-4 py-8 text-center text-gray-500">Loading expenses...</td>
                         </tr>
                     </tbody>
                 </table>
             </div>
             <div id="pagination" class="mt-6"></div>
         </div>
-    </div>
 
+    <div id="edit-expense-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 p-4">
+        <div class="w-full max-w-lg rounded-xl bg-white p-6 shadow-2xl">
+            <h3 class="mb-1 text-xl font-bold text-slate-900">Edit expense</h3>
+            <p id="edit-expense-status-hint" class="mb-4 text-xs text-slate-500"></p>
+            <form id="edit-expense-form" class="space-y-4" onsubmit="saveEditExpense(event)">
+                <input type="hidden" id="edit_expense_id">
+                <div>
+                    <label class="mb-1 block text-sm font-semibold text-gray-700">Expense name *</label>
+                    <input type="text" id="edit_expense_name" required class="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="mb-1 block text-sm font-semibold text-gray-700">Transaction date *</label>
+                    <input type="date" id="edit_transaction_date" required class="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="mb-1 block text-sm font-semibold text-gray-700">Book *</label>
+                    <select id="edit_book_id" required class="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"></select>
+                    <p id="edit-book-locked-note" class="mt-1 hidden text-xs text-amber-700">Book cannot be changed on a processed expense. Cancel first if you need a different book.</p>
+                </div>
+                <div>
+                    <label class="mb-1 block text-sm font-semibold text-gray-700">Amount *</label>
+                    <input type="text" id="edit_amount" required class="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="mb-1 block text-sm font-semibold text-gray-700">Description</label>
+                    <textarea id="edit_description" rows="3" class="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"></textarea>
+                </div>
+                <div class="flex gap-3 pt-2">
+                    <button type="button" onclick="closeEditExpenseModal()" class="flex-1 rounded-lg bg-gray-200 py-2.5 font-bold text-gray-800 hover:bg-gray-300">Cancel</button>
+                    <button type="submit" class="flex-1 rounded-lg bg-blue-600 py-2.5 font-bold text-white hover:bg-blue-700">Save changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    </div>
+@endsection
+
+@push('scripts')
     <script>
-        let books = [];
+let books = [];
         let currentPage = 1;
+
+        // Money input formatting (commas) while keeping numeric payloads
+        function parseMoneyInput(value) {
+            if (value === null || value === undefined) return 0;
+            const cleaned = String(value).replace(/,/g, '').trim();
+            const n = parseFloat(cleaned);
+            return Number.isFinite(n) ? n : 0;
+        }
+
+        function formatMoneyForInput(value) {
+            const n = parseMoneyInput(value);
+            return n.toLocaleString('en-TZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
+        function attachMoneyFormatting(inputId) {
+            const el = document.getElementById(inputId);
+            if (!el) return;
+            el.setAttribute('inputmode', 'decimal');
+            el.addEventListener('focus', () => { el.value = String(el.value || '').replace(/,/g, ''); });
+            el.addEventListener('blur', () => { if (el.value !== '') el.value = formatMoneyForInput(el.value); });
+        }
 
         document.addEventListener('DOMContentLoaded', function() {
             loadBooks();
@@ -181,17 +226,50 @@
 
             document.getElementById('transaction_date').valueAsDate = new Date();
 
-            document.getElementById('book_id').addEventListener('change', function() {
-                const selectedBook = books.find(b => b.id == this.value);
+            document.getElementById('book_id').addEventListener('change', updateBookBalanceAndFeeEstimate);
+            document.getElementById('amount').addEventListener('input', updateBookBalanceAndFeeEstimate);
+
+            // Money input formatting (commas)
+            attachMoneyFormatting('amount');
+            attachMoneyFormatting('edit_amount');
+
+            function estimateBankFeeFromBook(book, amount) {
+                if (!book || book.is_cash_book || !book.bank_fees_enabled || !book.bank_fee_particular_id) return 0;
+                const a = parseMoneyInput(amount);
+                if (isNaN(a) || a <= 0) return 0;
+                const tiers = book.bank_fee_tiers || [];
+                for (const t of tiers) {
+                    const from = parseFloat(t.amount_from);
+                    const to = (t.amount_to === null || t.amount_to === undefined || t.amount_to === '') ? null : parseFloat(t.amount_to);
+                    if (a < from) continue;
+                    if (to !== null && !isNaN(to) && a > to) continue;
+                    return parseFloat(t.fee_amount) || 0;
+                }
+                return 0;
+            }
+
+            function updateBookBalanceAndFeeEstimate() {
+                const selectedBook = books.find(b => b.id == document.getElementById('book_id').value);
+                const amt = document.getElementById('amount').value;
+                const wrap = document.getElementById('bank-fee-estimate-wrap');
+                const feeEl = document.getElementById('est-bank-fee');
                 if (selectedBook) {
                     const balance = parseFloat(selectedBook.opening_balance || 0) +
                                   parseFloat(selectedBook.total_debits || 0) -
                                   parseFloat(selectedBook.total_credits || 0);
                     document.getElementById('book-balance').textContent = 'TSH ' + balance.toLocaleString();
+                    const fee = estimateBankFeeFromBook(selectedBook, amt);
+                    if (fee > 0) {
+                        wrap.style.display = 'block';
+                        feeEl.textContent = 'TSH ' + fee.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                    } else {
+                        wrap.style.display = 'none';
+                    }
                 } else {
                     document.getElementById('book-balance').textContent = 'TSH 0';
+                    wrap.style.display = 'none';
                 }
-            });
+            }
 
             document.getElementById('expense-form').addEventListener('submit', function(e) {
                 e.preventDefault();
@@ -319,7 +397,7 @@
             const tbody = document.getElementById('expenses-table');
 
             if (expenses.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="7" class="px-4 py-8 text-center text-gray-500">No expenses found</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="8" class="px-4 py-8 text-center text-gray-500">No expenses found</td></tr>';
                 return;
             }
 
@@ -336,17 +414,21 @@
                         <button onclick="processExpense(${expense.id})" class="bg-green-500 text-white px-3 py-1 rounded text-sm hover:bg-green-600 mr-2">
                             Process
                         </button>
-                        <button onclick="editExpense(${expense.id})" class="bg-blue-500 text-white px-3 py-1 rounded text-sm hover:bg-blue-600 mr-2">
+                        <button onclick="editExpense(${expense.id})" class="bg-blue-500 text-white px-3 py-1 rounded text-sm hover:bg-blue-600">
                             Edit
-                        </button>
-                        <button onclick="deleteExpense(${expense.id})" class="bg-red-500 text-white px-3 py-1 rounded text-sm hover:bg-red-600">
-                            Delete
                         </button>
                     `;
                 } else if (expense.status === 'processed') {
-                    actions = `<span class="text-gray-400 text-sm">Cannot be modified</span>`;
+                    actions = `
+                        <button onclick="editExpense(${expense.id})" class="bg-blue-500 text-white px-3 py-1 rounded text-sm hover:bg-blue-600 mr-2">
+                            Edit
+                        </button>
+                        <button onclick="cancelExpense(${expense.id})" class="bg-amber-500 text-white px-3 py-1 rounded text-sm hover:bg-amber-600" title="Reverse vouchers but keep the record for audit">
+                            Cancel
+                        </button>
+                    `;
                 } else {
-                    actions = `<span class="text-gray-400 text-sm">Cancelled</span>`;
+                    actions = `<span class="text-gray-400 text-sm">Cancelled (kept on record)</span>`;
                 }
 
                 return `
@@ -356,6 +438,7 @@
                         <td class="px-4 py-3">${new Date(expense.transaction_date).toLocaleDateString()}</td>
                         <td class="px-4 py-3">${expense.book?.name || 'N/A'}</td>
                         <td class="px-4 py-3 font-bold">TSH ${parseFloat(expense.amount).toLocaleString()}</td>
+                        <td class="px-4 py-3 text-sm">${expense.bank_fee_amount != null ? 'TSH ' + parseFloat(expense.bank_fee_amount).toLocaleString() : '—'}</td>
                         <td class="px-4 py-3">
                             <span class="px-2 py-1 rounded text-xs font-semibold ${statusColors[expense.status]}">${expense.status.toUpperCase()}</span>
                         </td>
@@ -387,7 +470,7 @@
                 expense_name: document.getElementById('expense_name').value,
                 transaction_date: document.getElementById('transaction_date').value,
                 book_id: document.getElementById('book_id').value,
-                amount: document.getElementById('amount').value,
+                amount: parseMoneyInput(document.getElementById('amount').value),
                 description: document.getElementById('description').value,
             };
 
@@ -444,28 +527,116 @@
                 });
         }
 
-        function deleteExpense(id) {
-            if (!confirm('Are you sure you want to delete this pending expense?')) {
+        function cancelExpense(id) {
+            const reason = prompt('Reason for cancelling this expense (kept on the audit record):');
+            if (reason === null) return;
+            if (!reason.trim()) {
+                alert('A reason is required.');
                 return;
             }
 
-            axios.delete(`/api/expenses/${id}`)
-                .then(response => {
-                    alert('Expense deleted successfully!');
+            axios.post(`/api/expenses/${id}/cancel`, { reason: reason.trim() })
+                .then(() => {
+                    alert('Expense cancelled. The record is kept for audit; vouchers were reversed.');
                     loadExpenses(currentPage);
+                    updateSummary();
                 })
                 .catch(error => {
-                    console.error('Error deleting expense:', error);
-                    if (error.response && error.response.data.error) {
-                        alert(error.response.data.error);
-                    } else {
-                        alert('Error deleting expense');
-                    }
+                    console.error('Error cancelling expense:', error);
+                    const msg = error.response?.data?.error || error.response?.data?.message || 'Error cancelling expense';
+                    alert(msg);
                 });
         }
 
-        function editExpense(id) {
-            alert('Edit functionality coming soon!');
+        function populateEditBookSelect(selectedId) {
+            const sel = document.getElementById('edit_book_id');
+            sel.innerHTML = '<option value="">-- Select Book --</option>';
+            books.forEach(b => {
+                const o = document.createElement('option');
+                o.value = b.id;
+                o.textContent = b.name;
+                if (String(b.id) === String(selectedId)) o.selected = true;
+                sel.appendChild(o);
+            });
+        }
+
+        function openEditExpenseModal() {
+            const modal = document.getElementById('edit-expense-modal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeEditExpenseModal() {
+            const modal = document.getElementById('edit-expense-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        async function editExpense(id) {
+            try {
+                const res = await axios.get(`/api/expenses/${id}`);
+                const e = res.data;
+                document.getElementById('edit_expense_id').value = e.id;
+                document.getElementById('edit_expense_name').value = e.expense_name || '';
+                document.getElementById('edit_transaction_date').value = (e.transaction_date || '').slice(0, 10);
+                document.getElementById('edit_amount').value = formatMoneyForInput(e.amount);
+                document.getElementById('edit_description').value = e.description || '';
+
+                const isProcessed = e.status === 'processed';
+                const bookSel = document.getElementById('edit_book_id');
+                populateEditBookSelect(e.book_id);
+                bookSel.disabled = isProcessed;
+                document.getElementById('edit-book-locked-note').classList.toggle('hidden', !isProcessed);
+
+                const hint = document.getElementById('edit-expense-status-hint');
+                if (e.status === 'pending') {
+                    hint.textContent = 'Pending — changes apply before money is deducted from the book.';
+                } else if (isProcessed) {
+                    hint.textContent = 'Processed — vouchers will be rebuilt with the new amount (book stays the same).';
+                } else {
+                    hint.textContent = 'This expense is cancelled and cannot be edited.';
+                    alert('Cancelled expenses cannot be edited.');
+                    return;
+                }
+
+                openEditExpenseModal();
+            } catch (err) {
+                console.error(err);
+                alert(err.response?.data?.error || err.response?.data?.message || 'Could not load expense');
+            }
+        }
+
+        async function saveEditExpense(event) {
+            event.preventDefault();
+            const id = document.getElementById('edit_expense_id').value;
+            const bookSel = document.getElementById('edit_book_id');
+            const payload = {
+                expense_name: document.getElementById('edit_expense_name').value.trim(),
+                transaction_date: document.getElementById('edit_transaction_date').value,
+                book_id: bookSel.disabled ? bookSel.value : (bookSel.value || null),
+                amount: parseMoneyInput(document.getElementById('edit_amount').value),
+                description: document.getElementById('edit_description').value.trim() || null,
+            };
+
+            if (!payload.book_id) {
+                alert('Please select a book.');
+                return;
+            }
+            if (!payload.amount || payload.amount <= 0) {
+                alert('Enter a valid amount.');
+                return;
+            }
+
+            try {
+                await axios.put(`/api/expenses/${id}`, payload);
+                alert('Expense updated successfully.');
+                closeEditExpenseModal();
+                loadExpenses(currentPage);
+                updateSummary();
+            } catch (err) {
+                console.error(err);
+                alert(err.response?.data?.error || err.response?.data?.message || 'Error updating expense');
+            }
         }
 
         function clearFilters() {
@@ -476,5 +647,4 @@
             loadExpenses();
         }
     </script>
-</body>
-</html>
+@endpush

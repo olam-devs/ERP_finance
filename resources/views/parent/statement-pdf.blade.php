@@ -6,10 +6,6 @@
     <style>
         @page { margin: 15mm 10mm; }
         body { font-family: Arial, sans-serif; font-size: 10px; margin: 0; padding: 0; }
-        .header { text-align: center; margin-bottom: 10px; border-bottom: 1px solid #333; padding-bottom: 8px; }
-        .school-logo { max-width: 60px; max-height: 60px; margin-bottom: 5px; }
-        .school-name { font-size: 16px; font-weight: bold; margin-bottom: 3px; }
-        .school-info { font-size: 9px; color: #666; }
         .statement-title { font-size: 14px; font-weight: bold; margin: 8px 0; text-align: center; background: #2196f3; color: white; padding: 8px; }
         .student-info { background-color: #f5f5f5; padding: 8px; margin-bottom: 10px; border-left: 3px solid #2196f3; font-size: 9px; line-height: 1.4; }
         .section-header { background: #1976d2; color: white; padding: 6px 10px; font-weight: bold; font-size: 11px; margin-top: 15px; margin-bottom: 0; }
@@ -29,16 +25,7 @@
     </style>
 </head>
 <body>
-    <!-- Header -->
-    <div class="header">
-        @if(isset($school) && $school->logo_path && file_exists(storage_path('app/public/' . $school->logo_path)))
-            <img src="{{ storage_path('app/public/' . $school->logo_path) }}" alt="School Logo" class="school-logo">
-        @endif
-        <div class="school-name">{{ $school->school_name ?? 'Darasa Secondary School' }}</div>
-        <div class="school-info">
-            {{ $school->po_box ?? 'P.O. Box 12345' }} | {{ $school->region ?? 'Dar es Salaam' }} | Tel: {{ $school->phone ?? '+255 123 456 789' }}
-        </div>
-    </div>
+    @include('components.pdf-header', ['school' => $school ?? null])
 
     <div class="statement-title">STUDENT FEE STATEMENT</div>
 

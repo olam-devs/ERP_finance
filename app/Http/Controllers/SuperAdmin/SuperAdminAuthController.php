@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\SuperAdmin;
 
 use App\Http\Controllers\Controller;
-use App\Models\Central\SuperAdmin;
+use App\Models\Platform\PlatformSuperAdmin as SuperAdmin;
 use App\Services\ActivityLogger;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;

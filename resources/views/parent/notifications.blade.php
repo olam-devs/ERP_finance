@@ -8,7 +8,7 @@
 <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
     <div class="flex justify-between items-center mb-6">
         <h3 class="font-bold text-gray-800 flex items-center gap-2 text-xl">
-            <i class="fas fa-bell text-indigo-600"></i> 
+            <i class="fas fa-bell text-blue-600"></i> 
             <span data-translate="notifications-header">Notifications & Reminders</span>
         </h3>
         <div class="text-sm text-gray-500">
@@ -76,7 +76,7 @@
                         {{ collect($notifications)->where('type', 'overdue')->count() }}
                     </p>
                 </div>
-                <div class="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-4 border border-blue-200">
+                <div class="bg-gradient-to-br from-blue-50 to-blue-50 rounded-xl p-4 border border-blue-200">
                     <p class="text-sm text-blue-700 font-medium mb-1" data-translate="total-notifications-count">Total Notifications</p>
                     <p class="text-2xl font-bold text-blue-800">{{ count($notifications) }}</p>
                 </div>

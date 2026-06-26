@@ -1,63 +1,24 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>Particular Ledger - Darasa Finance</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
-</head>
-<body class="bg-gray-100">
-    @include('components.sidebar')
+﻿@extends($portalLayout ?? 'layouts.accountant')
 
-    <!-- Header -->
-    <nav class="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-4 shadow-lg mb-6 sticky top-0 z-40">
-        <div class="container mx-auto flex justify-between items-center">
-            <div class="flex items-center gap-4">
-                <!-- Menu Button -->
-                <button onclick="toggleSidebar()" class="hover:bg-white hover:bg-opacity-20 p-2 rounded transition">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
-                    </svg>
-                </button>
-                <!-- Clickable Logo -->
-                <a href="{{ route('accountant.dashboard') }}" class="flex items-center gap-2 hover:opacity-80 transition">
-                    @if($settings->logo_path && file_exists(public_path('storage/' . $settings->logo_path)))
-                        <img src="{{ asset('storage/' . $settings->logo_path) }}" alt="School Logo" class="w-10 h-10 rounded-lg bg-white p-1 object-contain">
-                    @else
-                        <div class="bg-white bg-opacity-20 p-2 rounded-lg">
-                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
-                            </svg>
-                        </div>
-                    @endif
-                    <h1 class="text-2xl font-bold">📋 Particular Ledger</h1>
-                </a>
-            </div>
-            <div class="flex gap-3 items-center">
-                <form method="POST" action="{{ route('logout') }}">
-                    @csrf
-                    <button type="submit" class="bg-red-500 hover:bg-red-600 px-4 py-2 rounded transition">Logout</button>
-                </form>
-            </div>
-        </div>
-    </nav>
+@section('title', 'Particular ledger — Darasa Finance')
+@section('page_title', 'Particular ledger')
 
-    <!-- Module Content -->
-    <div class="container mx-auto p-6">
+@section('content')
+<!-- Module Content -->
+    <div class="w-full p-6">
         <div>
-            <h2 class="text-3xl font-bold text-teal-600 mb-6">📋 Particular Ledger</h2>
+            <h2 class="text-3xl font-bold text-blue-600 mb-6">📋 Particular Ledger</h2>
             <p class="text-gray-600 mb-6">Select a particular/fee type to view all related transactions across all students.</p>
 
             <div id="particularsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6"></div>
             <div id="particularDetailsSection"></div>
         </div>
     </div>
+@endsection
 
-    <!-- Module Scripts -->
+@push('scripts')
     <script>
-        const API_BASE = '/api';
+const API_BASE = '/api';
 
         // Configure axios
         axios.defaults.headers.common['X-CSRF-TOKEN'] = document.querySelector('meta[name="csrf-token"]').content;
@@ -85,8 +46,8 @@
                 let html = '';
                 particulars.forEach(particular => {
                     html += `
-                        <div onclick="loadParticularDetails(${particular.id})" class="bg-teal-50 border-2 border-teal-300 rounded-lg p-4 hover:bg-teal-100 hover:border-teal-500 transition cursor-pointer">
-                            <h4 class="font-bold text-lg text-teal-800">${particular.name}</h4>
+                        <div onclick="loadParticularDetails(${particular.id})" class="bg-blue-50 border-2 border-blue-300 rounded-lg p-4 hover:bg-blue-100 hover:border-blue-500 transition cursor-pointer">
+                            <h4 class="font-bold text-lg text-blue-800">${particular.name}</h4>
                             <p class="text-xs text-gray-600 mt-2">Click to view transactions</p>
                         </div>
                     `;
@@ -117,9 +78,9 @@
                 const data = response.data;
 
                 let html = `
-                    <div class="bg-white border-2 border-teal-300 rounded-lg p-6">
-                        <div class="mb-6 border-b-2 border-teal-300 pb-4">
-                            <h3 class="text-2xl font-bold text-teal-700">${data.particular.name}</h3>
+                    <div class="bg-white border-2 border-blue-300 rounded-lg p-6">
+                        <div class="mb-6 border-b-2 border-blue-300 pb-4">
+                            <h3 class="text-2xl font-bold text-blue-700">${data.particular.name}</h3>
                             <p class="text-sm text-gray-600 mt-2">${data.date_range}</p>
 
                             <!-- Date Range Filter -->
@@ -197,7 +158,7 @@
                         <!-- Transactions Table -->
                         <div class="overflow-x-auto">
                             <table class="w-full border-2 border-gray-300 bg-white">
-                                <thead class="bg-teal-100">
+                                <thead class="bg-blue-100">
                                     <tr>
                                         <th class="p-3 text-left">Date</th>
                                         <th class="p-3 text-left">Student</th>
@@ -286,7 +247,7 @@
                     // Regular transaction entry
                     else {
                         html += `
-                            <tr class="border-t hover:bg-teal-50">
+                            <tr class="border-t hover:bg-blue-50">
                                 <td class="p-3">${entry.date}</td>
                                 <td class="p-3 font-semibold">${entry.student}</td>
                                 <td class="p-3">${entry.class}</td>
@@ -450,5 +411,4 @@
             }
         }
     </script>
-</body>
-</html>
+@endpush

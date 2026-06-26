@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -10,7 +10,7 @@
 <body class="bg-gray-100">
     <div class="min-h-screen">
         <!-- Header with Breadcrumb -->
-        <nav class="bg-gradient-to-r from-blue-600 to-cyan-600 text-white p-4 shadow-lg">
+        <nav class="bg-gradient-to-r from-blue-600 to-sky-600 text-white p-4 shadow-lg">
             <div class="container mx-auto">
                 <!-- Breadcrumb Navigation -->
                 <div class="mb-2 text-sm">

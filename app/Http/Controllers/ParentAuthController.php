@@ -7,6 +7,7 @@ use App\Models\Student;
 use App\Models\SchoolSetting;
 use App\Services\ActivityLogger;
 use App\Traits\HasSchoolContext;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Session;
 
 class ParentAuthController extends Controller
@@ -34,22 +35,30 @@ class ParentAuthController extends Controller
     {
         $request->validate([
             'student_reg_no' => 'required|string',
+            'portal_password' => 'required|string',
         ]);
 
-        $regNo = $request->student_reg_no;
-
-        $student = Student::where('student_reg_no', $regNo)->first();
+        $student = Student::where('student_reg_no', trim($request->student_reg_no))->first();
 
         if (!$student) {
-            return back()->withInput()->with('error', 'Student Registration Number not found.');
+            return back()->withInput()->with('error', 'Student registration number not found. Please check and try again.');
         }
 
-        // Login success - simplified authentication
-        Session::put('parent_student_id', $student->id);
-        Session::put('parent_student_name', $student->name);
-        Session::put('parent_language', $request->input('language', 'en')); // Default to English
+        // If no portal password has been set yet, block access and prompt admin
+        if (empty($student->portal_password)) {
+            return back()->withInput()->with('error', 'Portal access not yet activated for this student. Please contact the school office.');
+        }
 
-        // Log parent login
+        // Verify password
+        if (!Hash::check($request->portal_password, $student->portal_password)) {
+            return back()->withInput()->with('error', 'Incorrect password. Please contact the school office if you have forgotten your password.');
+        }
+
+        // Success — start session
+        Session::put('parent_student_id',   $student->id);
+        Session::put('parent_student_name', $student->name);
+        Session::put('parent_language',     $request->input('language', 'en'));
+
         $schoolId = $this->getSchoolId();
         if ($schoolId) {
             $this->activityLogger->logParentAction(
@@ -66,8 +75,7 @@ class ParentAuthController extends Controller
 
     public function logout()
     {
-        // Log parent logout before clearing session
-        $schoolId = $this->getSchoolId();
+        $schoolId  = $this->getSchoolId();
         $studentId = Session::get('parent_student_id');
         $studentName = Session::get('parent_student_name');
 

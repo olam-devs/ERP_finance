@@ -1,44 +1,10 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>Manage Phone Numbers - Darasa Finance</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
-</head>
-<body class="bg-gray-100">
-    <div class="min-h-screen">
-        <!-- Header with Breadcrumb -->
-        <nav class="bg-gradient-to-r from-green-600 to-teal-600 text-white p-4 shadow-lg">
-            <div class="container mx-auto">
-                <!-- Breadcrumb Navigation -->
-                <div class="mb-2 text-sm">
-                    <a href="{{ route('accountant.dashboard') }}" class="hover:text-green-200 transition">🏠 Home</a>
-                    <span class="mx-2">›</span>
-                    <a href="{{ route('accountant.sms') }}" class="hover:text-green-200 transition">SMS Notification</a>
-                    <span class="mx-2">›</span>
-                    <span class="text-green-200">Manage Phone Numbers</span>
-                </div>
+@extends('layouts.accountant')
 
-                <div class="flex justify-between items-center">
-                    <div class="flex items-center gap-4">
-                        <h1 class="text-2xl font-bold">📞 Manage Parent Phone Numbers</h1>
-                    </div>
-                    <div class="flex gap-3">
-                        <a href="{{ route('sms.download-template') }}" class="bg-blue-500 hover:bg-blue-600 px-4 py-2 rounded transition">
-                            📥 Download CSV Template
-                        </a>
-                        <button onclick="document.getElementById('csv-upload').click()" class="bg-yellow-500 hover:bg-yellow-600 px-4 py-2 rounded transition">
-                            📤 Upload CSV
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </nav>
+@section('title', 'Phone numbers — Darasa Finance')
+@section('page_title', 'Phone numbers')
 
-        <div class="container mx-auto p-6">
+@section('content')
+<div class="w-full p-6">
             <!-- Upload Form (Hidden) -->
             <form id="upload-form" enctype="multipart/form-data" class="hidden">
                 <input type="file" id="csv-upload" accept=".csv,.txt" onchange="uploadCSV()">
@@ -184,9 +150,11 @@
             </div>
         </div>
     </div>
+@endsection
 
+@push('scripts')
     <script>
-        axios.defaults.headers.common['X-CSRF-TOKEN'] = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+axios.defaults.headers.common['X-CSRF-TOKEN'] = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
 
         // Update phone number
         async function updatePhone(studentId) {
@@ -283,5 +251,4 @@
             }, 5000);
         }
     </script>
-</body>
-</html>
+@endpush

@@ -2,17 +2,23 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Student;
+use App\Models\Scholarship;
 use App\Models\SchoolClass;
-use App\Models\Particular;
+use App\Models\SchoolSetting;
+use App\Models\Student;
+use App\Models\SuspenseAccount;
+use App\Models\Voucher;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 
 class StudentController extends Controller
 {
     public function index()
     {
         $students = Student::with('schoolClass')->get();
+
         return view('students.index', compact('students'));
     }
 
@@ -29,12 +35,14 @@ class StudentController extends Controller
         }
 
         $students = $query->orderBy('name')->get();
+
         return response()->json(['students' => $students]);
     }
 
     public function create()
     {
         $classes = SchoolClass::where('is_active', true)->orderBy('display_order')->get();
+
         return view('students.create', compact('classes'));
     }
 
@@ -63,6 +71,7 @@ class StudentController extends Controller
     public function show($id)
     {
         $student = Student::with(['schoolClass', 'particulars'])->findOrFail($id);
+
         return view('students.show', compact('student'));
     }
 
@@ -70,6 +79,7 @@ class StudentController extends Controller
     {
         $student = Student::findOrFail($id);
         $classes = SchoolClass::where('is_active', true)->orderBy('display_order')->get();
+
         return view('students.edit', compact('student', 'classes'));
     }
 
@@ -78,7 +88,7 @@ class StudentController extends Controller
         $student = Student::findOrFail($id);
 
         $validated = $request->validate([
-            'student_reg_no' => 'required|string|unique:students,student_reg_no,' . $id,
+            'student_reg_no' => 'required|string|unique:students,student_reg_no,'.$id,
             'name' => 'required|string|max:255',
             'gender' => 'required|in:male,female',
             'class_id' => 'required|exists:school_classes,id',
@@ -117,7 +127,7 @@ class StudentController extends Controller
             ->with('schoolClass')
             ->limit(20)
             ->get()
-            ->map(function($student) {
+            ->map(function ($student) {
                 return [
                     'id' => $student->id,
                     'name' => $student->name,
@@ -148,7 +158,7 @@ class StudentController extends Controller
     {
         $student = Student::with('particulars')->findOrFail($studentId);
 
-        $summary = $student->particulars->map(function($particular) {
+        $summary = $student->particulars->map(function ($particular) {
             return [
                 'particular_id' => $particular->id,
                 'particular_name' => $particular->name,
@@ -170,11 +180,11 @@ class StudentController extends Controller
 
     public function downloadStudentTemplate()
     {
-        $filename = "student-import-template.csv";
+        $filename = 'student-import-template.csv';
         $handle = fopen('php://output', 'w');
 
         header('Content-Type: text/csv');
-        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        header('Content-Disposition: attachment; filename="'.$filename.'"');
 
         fputcsv($handle, ['student_reg_no', 'name', 'gender', 'class_name', 'parent_phone_1', 'parent_phone_2', 'admission_date']);
         fputcsv($handle, ['STU001', 'John Doe Mwangi', 'male', 'Grade 1', '255712345678', '255787654321', '2024-01-15']);
@@ -205,8 +215,9 @@ class StudentController extends Controller
 
                 // Find or create class
                 $class = SchoolClass::where('name', $studentData['class_name'])->first();
-                if (!$class) {
+                if (! $class) {
                     $errors[] = "Class not found: {$studentData['class_name']} for student {$studentData['name']}";
+
                     continue;
                 }
 
@@ -228,11 +239,12 @@ class StudentController extends Controller
                 // Parent can login using student registration number only
                 // No separate account needed - session-based authentication
                 $parentAccountsCreated++;
-                
+
                 $imported++;
             }
 
             DB::commit();
+
             return response()->json([
                 'message' => "Successfully imported {$imported} students. Parent portal access enabled for all students.",
                 'imported' => $imported,
@@ -241,14 +253,107 @@ class StudentController extends Controller
             ]);
         } catch (\Exception $e) {
             DB::rollBack();
+
             return response()->json(['error' => $e->getMessage()], 500);
         }
+    }
+
+    /**
+     * Full student dossier: all years, assignments, vouchers, scholarships, suspense, SMS.
+     */
+    public function studentProfilePage()
+    {
+        $settings = SchoolSetting::getSettings();
+
+        return view('admin.accountant.modules.student-profile', compact('settings'));
+    }
+
+    public function getStudentFullProfile($studentId)
+    {
+        $student = Student::with('schoolClass')->findOrFail($studentId);
+
+        $assignments = DB::table('particular_student as ps')
+            ->join('particulars as p', 'p.id', '=', 'ps.particular_id')
+            ->leftJoin('academic_years as ay', 'ay.id', '=', 'ps.academic_year_id')
+            ->leftJoin('scholarships as sch', function ($join) {
+                $join->on('sch.student_id', '=', 'ps.student_id')
+                    ->on('sch.particular_id', '=', 'ps.particular_id')
+                    ->where('sch.is_active', '=', 1)
+                    ->whereRaw('sch.academic_year_id <=> ps.academic_year_id');
+            })
+            ->where('ps.student_id', $studentId)
+            ->orderByDesc('ps.academic_year_id')
+            ->orderBy('p.name')
+            ->select([
+                'ps.particular_id',
+                'p.name as particular_name',
+                'ps.academic_year_id',
+                'ay.name as academic_year_name',
+                'ps.sales',
+                'ps.debit',
+                'ps.credit',
+                'ps.overpayment',
+                'ps.deadline',
+                DB::raw('COALESCE(sch.forgiven_amount, 0) as scholarship_forgiven'),
+                DB::raw('GREATEST(ps.sales - COALESCE(sch.forgiven_amount, 0), 0) as expected_net'),
+                DB::raw('GREATEST(ps.sales - COALESCE(sch.forgiven_amount, 0) - ps.credit, 0) as outstanding'),
+            ])
+            ->get();
+
+        $vouchers = Voucher::with(['particular', 'book'])
+            ->where('student_id', $studentId)
+            ->orderByDesc('date')
+            ->orderByDesc('id')
+            ->limit(1000)
+            ->get();
+
+        $scholarships = Scholarship::with(['particular', 'academicYear'])
+            ->where('student_id', $studentId)
+            ->orderByDesc('applied_date')
+            ->get();
+
+        $suspenseAccounts = SuspenseAccount::where('resolved_student_id', $studentId)
+            ->orderByDesc('date')
+            ->limit(200)
+            ->get();
+
+        $smsLogs = $student->smsLogs()
+            ->orderByDesc('sent_at')
+            ->orderByDesc('id')
+            ->limit(40)
+            ->get();
+
+        $totals = [
+            'expected_gross' => (float) $assignments->sum('sales'),
+            'expected_net' => (float) $assignments->sum(fn ($r) => (float) $r->expected_net),
+            'collected' => (float) $assignments->sum('credit'),
+            'scholarships' => (float) $assignments->sum('scholarship_forgiven'),
+            'outstanding' => (float) $assignments->sum(fn ($r) => (float) $r->outstanding),
+            'advance_balance' => (float) ($student->advance_balance ?? 0),
+        ];
+
+        return response()->json([
+            'student' => $student,
+            'assignments' => $assignments,
+            'vouchers' => $vouchers,
+            'scholarships' => $scholarships,
+            'suspense_accounts' => $suspenseAccounts,
+            'sms_logs' => $smsLogs,
+            'totals' => $totals,
+            'links' => [
+                'ledger_pdf' => route('api.ledgers.student.pdf', ['studentId' => $studentId]),
+                'ledger_csv' => route('api.ledgers.student.csv', ['studentId' => $studentId]),
+                'invoice_pdf' => route('accountant.invoices.student.pdf', ['studentId' => $studentId]),
+                'student_statement' => route('reports.student-statement', ['studentId' => $studentId]),
+            ],
+        ]);
     }
 
     // Student Promotion
     public function promotionPage()
     {
         $classes = SchoolClass::where('is_active', true)->orderBy('display_order')->get();
+
         return view('admin.accountant.modules.student-promotion', compact('classes'));
     }
 
@@ -276,7 +381,7 @@ class StudentController extends Controller
         // Prevent promoting to the same class
         if ($validated['source_class_id'] == $validated['destination_class_id']) {
             return response()->json([
-                'error' => 'Cannot promote students to the same class. Please select a different destination class.'
+                'error' => 'Cannot promote students to the same class. Please select a different destination class.',
             ], 400);
         }
 
@@ -293,11 +398,13 @@ class StudentController extends Controller
                 ]);
 
             DB::commit();
+
             return response()->json([
-                'message' => $updated . ' students promoted successfully to ' . $destinationClass->name,
+                'message' => $updated.' students promoted successfully to '.$destinationClass->name,
             ]);
         } catch (\Exception $e) {
             DB::rollBack();
+
             return response()->json(['error' => $e->getMessage()], 500);
         }
     }
@@ -306,7 +413,7 @@ class StudentController extends Controller
     {
         $student = Student::with('particulars')->findOrFail($studentId);
 
-        $particulars = $student->particulars->map(function($particular) {
+        $particulars = $student->particulars->map(function ($particular) {
             return [
                 'id' => $particular->id,
                 'name' => $particular->name,
@@ -326,7 +433,7 @@ class StudentController extends Controller
         $student = Student::findOrFail($studentId);
         $particular = $student->particulars()->where('particular_id', $particularId)->first();
 
-        if (!$particular) {
+        if (! $particular) {
             return response()->json(['error' => 'Particular not assigned to student'], 404);
         }
 
@@ -339,5 +446,95 @@ class StudentController extends Controller
             'balance' => $particular->pivot->sales + $particular->pivot->debit - $particular->pivot->credit,
             'deadline' => $particular->pivot->deadline,
         ]);
+    }
+
+    // ── Portal Password Management ──────────────────────────────────────────
+
+    public function portalPasswordsPage()
+    {
+        $classes  = SchoolClass::orderBy('name')->get();
+        $settings = SchoolSetting::getSettings();
+        return view('admin.accountant.modules.portal-passwords', compact('classes', 'settings'));
+    }
+
+    public function searchStudentsForPassword(Request $request)
+    {
+        $q = trim($request->input('q', ''));
+        $classId = $request->input('class_id');
+
+        $query = Student::select('id', 'name', 'student_reg_no', 'class_id', 'portal_password', 'portal_password_set_at', 'portal_password_set_by')
+            ->with('schoolClass:id,name');
+
+        if ($q !== '') {
+            $query->where(function ($sq) use ($q) {
+                $sq->where('name', 'like', "%{$q}%")
+                   ->orWhere('student_reg_no', 'like', "%{$q}%");
+            });
+        }
+
+        if ($classId) {
+            $query->where('class_id', $classId);
+        }
+
+        return response()->json($query->orderBy('name')->limit(100)->get()->map(fn($s) => [
+            'id'           => $s->id,
+            'name'         => $s->name,
+            'reg_no'       => $s->student_reg_no,
+            'class'        => $s->schoolClass?->name ?? '—',
+            'has_password' => !empty($s->portal_password),
+            'set_at'       => $s->portal_password_set_at?->diffForHumans(),
+            'set_by'       => $s->portal_password_set_by,
+        ]));
+    }
+
+    public function setPortalPassword(Request $request, $studentId)
+    {
+        $request->validate([
+            'password' => 'required|string|min:4',
+        ]);
+
+        $student = Student::findOrFail($studentId);
+        $setBy   = Auth::user()?->name ?? 'Admin';
+
+        $student->update([
+            'portal_password'        => Hash::make($request->password),
+            'portal_password_set_at' => now(),
+            'portal_password_set_by' => $setBy,
+        ]);
+
+        return response()->json(['success' => true, 'message' => "Password set for {$student->name}"]);
+    }
+
+    public function bulkSetPortalPassword(Request $request)
+    {
+        $request->validate([
+            'password'   => 'required|string|min:4',
+            'class_id'   => 'nullable|integer',
+            'student_ids'=> 'nullable|array',
+            'student_ids.*' => 'integer',
+        ]);
+
+        $hash  = Hash::make($request->password);
+        $setBy = Auth::user()?->name ?? 'Admin';
+        $now   = now();
+
+        $query = Student::query();
+
+        if ($request->filled('class_id')) {
+            $query->where('class_id', $request->class_id);
+        } elseif ($request->filled('student_ids')) {
+            $query->whereIn('id', $request->student_ids);
+        } else {
+            return response()->json(['success' => false, 'message' => 'Specify a class or student list.'], 422);
+        }
+
+        $count = $query->count();
+        $query->update([
+            'portal_password'        => $hash,
+            'portal_password_set_at' => $now,
+            'portal_password_set_by' => $setBy,
+        ]);
+
+        return response()->json(['success' => true, 'message' => "Password set for {$count} student(s)."]);
     }
 }

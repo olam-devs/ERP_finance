@@ -1,33 +1,10 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>Student Promotion - Darasa Finance</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
-</head>
-<body class="bg-gray-100">
-    <!-- Header -->
-    <nav class="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-4 shadow-lg mb-6">
-        <div class="container mx-auto flex justify-between items-center">
-            <div class="flex items-center gap-4">
-                <a href="{{ route('accountant.dashboard') }}" class="hover:bg-white hover:bg-opacity-20 p-2 rounded transition">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
-                    </svg>
-                </a>
-                <h1 class="text-2xl font-bold">📚 Student Promotion</h1>
-            </div>
-            <form method="POST" action="{{ route('logout') }}">
-                @csrf
-                <button type="submit" class="bg-red-500 hover:bg-red-600 px-4 py-2 rounded transition">Logout</button>
-            </form>
-        </div>
-    </nav>
+@extends('layouts.accountant')
 
-    <div class="container mx-auto p-6">
+@section('title', 'Student promotion — Darasa Finance')
+@section('page_title', 'Student promotion')
+
+@section('content')
+<div class="w-full p-6">
         <div class="bg-white rounded-lg shadow-lg p-6">
             <h2 class="text-3xl font-bold text-blue-600 mb-6">📚 Promote Students to Next Class</h2>
 
@@ -105,9 +82,11 @@
             </div>
         </div>
     </div>
+@endsection
 
+@push('scripts')
     <script>
-        axios.defaults.headers.common['X-CSRF-TOKEN'] = document.querySelector('meta[name="csrf-token"]').content;
+axios.defaults.headers.common['X-CSRF-TOKEN'] = document.querySelector('meta[name="csrf-token"]').content;
 
         let studentsData = [];
         let selectedStudents = new Set();
@@ -274,5 +253,4 @@
             }
         }
     </script>
-</body>
-</html>
+@endpush

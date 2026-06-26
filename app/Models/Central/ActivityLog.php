@@ -52,7 +52,7 @@ class ActivityLog extends Model
     public function user()
     {
         if ($this->user_type === 'super_admin') {
-            return SuperAdmin::find($this->user_id);
+            return \App\Models\Platform\PlatformSuperAdmin::find($this->user_id);
         } elseif ($this->user_type === 'accountant') {
             return SchoolAccountant::find($this->user_id);
         }

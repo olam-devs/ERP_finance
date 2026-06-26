@@ -3,9 +3,8 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
 
-class Book extends Model
+class Book extends BaseModel
 {
     use HasFactory;
 
@@ -22,12 +21,15 @@ class Book extends Model
         'opening_balance',
         'is_cash_book',
         'is_active',
+        'bank_fees_enabled',
+        'bank_fee_particular_id',
     ];
 
     protected $casts = [
         'opening_balance' => 'decimal:2',
         'is_cash_book' => 'boolean',
         'is_active' => 'boolean',
+        'bank_fees_enabled' => 'boolean',
     ];
 
     // Relationships
@@ -56,6 +58,56 @@ class Book extends Model
         return $this->hasMany(BookTransaction::class);
     }
 
+    public function bankFeeTiers()
+    {
+        return $this->hasMany(BookBankFeeTier::class)->orderBy('sort_order')->orderBy('amount_from');
+    }
+
+    public function bankFeeParticular()
+    {
+        return $this->belongsTo(Particular::class, 'bank_fee_particular_id');
+    }
+
+    public function feeCategories()
+    {
+        return $this->hasMany(BookFeeCategory::class)->orderBy('name');
+    }
+
+    public function monthlyCuts()
+    {
+        return $this->hasMany(BookMonthlyCut::class)->orderBy('day_of_month')->orderBy('name');
+    }
+
+    /**
+     * Bank fee for a withdrawal/expense amount based on optional tiers (bank books only).
+     */
+    public function resolveBankFeeForWithdrawalAmount(float|string $amount): float
+    {
+        if ($this->is_cash_book || ! $this->bank_fees_enabled || ! $this->bank_fee_particular_id) {
+            return 0.0;
+        }
+
+        $a = (float) $amount;
+        $tiers = $this->relationLoaded('bankFeeTiers')
+            ? $this->bankFeeTiers
+            : $this->bankFeeTiers()->get();
+
+        foreach ($tiers as $tier) {
+            $from = (float) $tier->amount_from;
+            $to = $tier->amount_to === null ? null : (float) $tier->amount_to;
+            if ($a < $from) {
+                continue;
+            }
+            if ($to !== null && $a > $to) {
+                continue;
+            }
+
+            return (float) $tier->fee_amount;
+        }
+
+        return 0.0;
+    }
+
     public function deposits()
     {
         return $this->hasMany(BookTransaction::class)->where('transaction_type', 'deposit');
@@ -72,21 +124,21 @@ class Book extends Model
         $totalDebit = $this->vouchers()->sum('debit');
         $totalCredit = $this->vouchers()->sum('credit');
 
-        return $this->opening_balance + $totalDebit - $totalCredit;
+        // Bank view (for comparing to bank statements):
+        // Bank considers money in as CR, money out as DR, so we invert the accountant storage.
+        return $this->opening_balance + $totalCredit - $totalDebit;
     }
 
     /**
-     * Get balance in cash view (receipts are DR, payments are CR)
-     * In cash view: balance = opening + credit - debit
-     * This is the opposite of bank view
+     * Get balance in accountant view (canonical storage):
+     * Receipts are DR (debit) and increase balance; Payments are CR (credit) and reduce balance.
      */
     public function getCashViewBalance()
     {
         $totalDebit = $this->vouchers()->sum('debit');
         $totalCredit = $this->vouchers()->sum('credit');
 
-        // Cash view: credits (receipts) increase balance, debits (expenses) decrease
-        return $this->opening_balance + $totalCredit - $totalDebit;
+        return $this->opening_balance + $totalDebit - $totalCredit;
     }
 
     /**
@@ -97,7 +149,7 @@ class Book extends Model
         $totalDebit = $this->vouchers()->where('date', '<', $date)->sum('debit');
         $totalCredit = $this->vouchers()->where('date', '<', $date)->sum('credit');
 
-        return $this->opening_balance + $totalDebit - $totalCredit;
+        return $this->opening_balance + $totalCredit - $totalDebit;
     }
 
     /**
@@ -108,6 +160,6 @@ class Book extends Model
         $totalDebit = $this->vouchers()->where('date', '<', $date)->sum('debit');
         $totalCredit = $this->vouchers()->where('date', '<', $date)->sum('credit');
 
-        return $this->opening_balance + $totalCredit - $totalDebit;
+        return $this->opening_balance + $totalDebit - $totalCredit;
     }
 }

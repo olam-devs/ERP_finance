@@ -1,81 +1,40 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>Student Management - Darasa Finance</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
-</head>
-<body class="bg-gray-100">
-    @include('components.sidebar')
+﻿@extends($portalLayout ?? 'layouts.accountant')
 
-    <!-- Header -->
-    <nav class="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-4 shadow-lg mb-6 sticky top-0 z-40">
-        <div class="container mx-auto flex justify-between items-center">
-            <div class="flex items-center gap-4">
-                <!-- Menu Button -->
-                <button onclick="toggleSidebar()" class="hover:bg-white hover:bg-opacity-20 p-2 rounded transition">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
-                    </svg>
-                </button>
-                <!-- Clickable Logo -->
-                <a href="{{ route('accountant.dashboard') }}" class="flex items-center gap-2 hover:opacity-80 transition">
-                    @if($settings->logo_path && file_exists(public_path('storage/' . $settings->logo_path)))
-                        <img src="{{ asset('storage/' . $settings->logo_path) }}" alt="School Logo" class="w-10 h-10 rounded-lg bg-white p-1 object-contain">
-                    @else
-                        <div class="bg-white bg-opacity-20 p-2 rounded-lg">
-                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
-                            </svg>
-                        </div>
-                    @endif
-                    <h1 class="text-2xl font-bold">👨‍🎓 Student Management</h1>
-                </a>
-            </div>
-            <div class="flex gap-3 items-center">
-                <form method="POST" action="{{ route('logout') }}">
-                    @csrf
-                    <button type="submit" class="bg-red-500 hover:bg-red-600 px-4 py-2 rounded transition">Logout</button>
-                </form>
-            </div>
-        </div>
-    </nav>
+@section('title', 'Student Management — Darasa Finance')
+@section('page_title', 'Students')
 
-    <!-- Module Content -->
-    <div class="container mx-auto p-6">
+@section('content')
+    <div>
         <div>
             <div class="flex justify-between items-center mb-6">
-                <h2 class="text-3xl font-bold text-blue-600">👨‍🎓 Students</h2>
+                <h2 class="text-2xl font-semibold text-slate-900">Students</h2>
                 <div class="flex gap-3">
-                    <a href="/api/students/csv/template" download class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded transition">
-                        📥 Download Template
+                    <a href="/api/students/csv/template" download class="inline-flex items-center rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+                        Download template
                     </a>
-                    <button onclick="showUploadCsvModal()" class="bg-teal-500 hover:bg-teal-600 text-white px-4 py-2 rounded transition">
-                        📤 Bulk Upload CSV
+                    <button onclick="showUploadCsvModal()" class="inline-flex items-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">
+                        Bulk upload CSV
                     </button>
-                    <button onclick="showAddStudentModal()" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded transition">
-                        ➕ Add Student
+                    <button onclick="showAddStudentModal()" class="inline-flex items-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">
+                        Add student
                     </button>
                 </div>
             </div>
 
             <!-- Filter Controls -->
-            <div class="bg-white rounded-lg shadow-md p-4 mb-6">
+            <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-4 mb-6">
                 <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <input type="text" id="studentSearch" placeholder="Search by name or reg no..." onkeyup="loadStudents()" class="border-2 border-gray-300 rounded-lg px-4 py-2">
-                    <select id="classFilter" onchange="loadStudents()" class="border-2 border-gray-300 rounded-lg px-4 py-2">
+                    <input type="text" id="studentSearch" placeholder="Search by name or reg no..." onkeyup="loadStudents()" class="rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    <select id="classFilter" onchange="loadStudents()" class="rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
                         <option value="">All Classes</option>
                         <!-- Populated dynamically -->
                     </select>
-                    <select id="genderFilter" onchange="loadStudents()" class="border-2 border-gray-300 rounded-lg px-4 py-2">
+                    <select id="genderFilter" onchange="loadStudents()" class="rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
                         <option value="">All Genders</option>
                         <option value="Male">Male</option>
                         <option value="Female">Female</option>
                     </select>
-                    <select id="sortFilter" onchange="loadStudents()" class="border-2 border-gray-300 rounded-lg px-4 py-2">
+                    <select id="sortFilter" onchange="loadStudents()" class="rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
                         <option value="name_asc">Name (A-Z)</option>
                         <option value="name_desc">Name (Z-A)</option>
                         <option value="recent">Recently Added</option>
@@ -156,7 +115,7 @@
     <!-- Upload CSV Modal -->
     <div id="uploadCsvModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
         <div class="bg-white rounded-lg p-6 max-w-2xl w-full">
-            <h3 class="text-2xl font-bold text-teal-600 mb-4">📤 Upload Student CSV</h3>
+            <h3 class="text-2xl font-bold text-blue-600 mb-4">📤 Upload Student CSV</h3>
             <form id="uploadCsvForm" onsubmit="submitUploadCsvForm(event)">
                 <div class="mb-4">
                     <label class="block font-bold mb-2">Select CSV File <span class="text-red-500">*</span></label>
@@ -189,8 +148,11 @@
     </div>
 
     <!-- Module Scripts -->
+@endsection
+
+@push('scripts')
     <script>
-        const API_BASE = '/api';
+const API_BASE = '/api';
 
         // Configure axios
         axios.defaults.headers.common['X-CSRF-TOKEN'] = document.querySelector('meta[name="csrf-token"]').content;
@@ -530,5 +492,4 @@
             }
         }
     </script>
-</body>
-</html>
+@endpush

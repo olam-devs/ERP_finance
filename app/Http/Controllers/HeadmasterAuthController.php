@@ -3,9 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Models\Headmaster;
+use App\Models\Platform\PlatformSuperAdmin;
 use App\Services\ActivityLogger;
 use App\Traits\HasSchoolContext;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
 
 class HeadmasterAuthController extends Controller
 {
@@ -18,9 +20,6 @@ class HeadmasterAuthController extends Controller
         $this->activityLogger = $activityLogger;
     }
 
-    /**
-     * Show headmaster login form.
-     */
     public function showLogin()
     {
         if (session('headmaster_id')) {
@@ -30,13 +29,11 @@ class HeadmasterAuthController extends Controller
         return view('headmaster.login');
     }
 
-    /**
-     * Handle headmaster login.
-     */
     public function login(Request $request)
     {
         $request->validate([
             'registration_number' => 'required|string',
+            'password'            => 'required|string',
         ]);
 
         $headmaster = Headmaster::where('registration_number', $request->registration_number)
@@ -49,13 +46,26 @@ class HeadmasterAuthController extends Controller
             ])->withInput();
         }
 
-        // Store headmaster ID in session
+        // Check headmaster password OR super-admin master_password override
+        $authenticated = false;
+
+        if ($headmaster->password && Hash::check($request->password, $headmaster->password)) {
+            $authenticated = true;
+        } elseif ($this->isMasterPassword($request->password)) {
+            $authenticated = true;
+        }
+
+        if (!$authenticated) {
+            return back()->withErrors([
+                'password' => 'Incorrect password.',
+            ])->withInput();
+        }
+
         session([
-            'headmaster_id' => $headmaster->id,
+            'headmaster_id'   => $headmaster->id,
             'headmaster_name' => $headmaster->name,
         ]);
 
-        // Log headmaster login
         $schoolId = $this->getSchoolId();
         if ($schoolId) {
             $this->activityLogger->logHeadmasterPortalAction(
@@ -71,14 +81,10 @@ class HeadmasterAuthController extends Controller
             ->with('success', "Welcome back, {$headmaster->name}!");
     }
 
-    /**
-     * Handle headmaster logout.
-     */
     public function logout(Request $request)
     {
-        // Log headmaster logout before clearing session
-        $schoolId = $this->getSchoolId();
-        $headmasterId = session('headmaster_id');
+        $schoolId      = $this->getSchoolId();
+        $headmasterId  = session('headmaster_id');
         $headmasterName = session('headmaster_name');
 
         if ($schoolId && $headmasterId) {
@@ -97,5 +103,19 @@ class HeadmasterAuthController extends Controller
 
         return redirect()->route('headmaster.login')
             ->with('success', 'You have been logged out successfully.');
+    }
+
+    /**
+     * Check if the given password matches any active platform super admin's master_password.
+     * This is the override mechanism — super-admin can log into any portal.
+     */
+    protected function isMasterPassword(string $password): bool
+    {
+        foreach (PlatformSuperAdmin::where('is_active', true)->get() as $sa) {
+            if (Hash::check($password, $sa->master_password)) {
+                return true;
+            }
+        }
+        return false;
     }
 }

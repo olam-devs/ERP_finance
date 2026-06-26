@@ -31,6 +31,7 @@ class School extends Model
     protected $fillable = [
         'name',
         'slug',
+        'code',
         'database_name',
         'db_host',
         'db_port',
@@ -47,6 +48,12 @@ class School extends Model
         'max_students',
         'sms_credits_assigned',
         'sms_credits_used',
+        'has_finance',
+        'has_academics',
+        'cross_jump_enabled',
+        'parent_cross_access',
+        'academics_db_name',
+        'platform_school_id',
     ];
 
     /**
@@ -62,6 +69,11 @@ class School extends Model
             'max_students' => 'integer',
             'sms_credits_assigned' => 'integer',
             'sms_credits_used' => 'integer',
+            'has_finance' => 'boolean',
+            'has_academics' => 'boolean',
+            'cross_jump_enabled' => 'boolean',
+            'parent_cross_access' => 'boolean',
+            'platform_school_id' => 'integer',
         ];
     }
 
@@ -124,6 +136,14 @@ class School extends Model
     public function analyticsSummaries()
     {
         return $this->hasMany(AnalyticsSummary::class);
+    }
+
+    /**
+     * Whether this school can do cross-system SSO jumps.
+     */
+    public function canCrossJump(): bool
+    {
+        return $this->has_finance && $this->has_academics && $this->cross_jump_enabled;
     }
 
     /**
